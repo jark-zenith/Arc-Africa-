@@ -4,7 +4,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const js=readFileSync(new URL('../app.js',import.meta.url),'utf8');
 const css=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 for (const token of ['Arc Africa','authModal','projectModal','detailModal','discover','config.js']) assert.ok(html.includes(token), 'missing HTML token: '+token);
-for (const token of ['signUp','signInWithPassword','resetPasswordForEmail','projects','project_comments','project_ratings','project_favorites','is_moderator','changes_requested']) assert.ok(js.includes(token), 'missing app capability: '+token);
+for (const token of ['signUp','signInWithPassword','resetPasswordForEmail','projects','project_comments','project_ratings','project_favorites','changes_requested','loadModerationQueue']) assert.ok(js.includes(token), 'missing app capability: '+token);
 assert.ok(css.includes('@media(max-width:650px)'), 'responsive mobile styles missing');
 assert.ok(!/service[_-]?role/i.test(html+js), 'service role key must never be shipped to browser');
 console.log('Arc Africa smoke checks passed.');
