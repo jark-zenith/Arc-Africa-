@@ -1,5 +1,56 @@
--- See full platform migration history in Supabase: arc_africa_platform_core.
--- This repository copy is maintained alongside the applied database migration.
--- The production schema includes profiles, projects, milestones, updates, comments,
--- ratings, favourites, RLS policies, moderator bootstrap trigger, and private storage.
--- For a fresh environment, use the SQL migration recorded in the project migration history.
+-- Arc Africa core schema. Applied to project zlhvczgjzgmiugdjfmgj.
+create extension if not exists pgcrypto;
+create table if not exists public.profiles(id uuid primary key references auth.users(id) on delete cascade,display_name text not null default '',avatar_url text,role text not null default 'member' check(role in ('member','moderator')),created_at timestamptz not null default now(),updated_at timestamptz not null default now());
+create table if not exists public.projects(id uuid primary key default gen_random_uuid(),owner_id uuid not null references auth.users(id) on delete cascade,title text not null check(char_length(title) between 4 and 120),slug text not null unique,summary text not null check(char_length(summary) between 20 and 280),description text not null,category text not null,country text not null default 'Kenya',location text,stage text not null default 'idea' check(stage in ('idea','prototype','pilot','launched')),budget numeric(14,2),currency text not null default 'KES',funding_goal numeric(14,2),tags text[] not null default '{}',website_url text,repository_url text,cover_path text,status text not null default 'pending' check(status in ('pending','approved','rejected','changes_requested','archived')),moderator_note text,reviewed_by uuid references auth.users(id),reviewed_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now());
+create table if not exists public.project_milestones(id uuid primary key default gen_random_uuid(),project_id uuid not null references public.projects(id) on delete cascade,title text not null,description text,due_date date,completed boolean not null default false,sort_order int not null default 0,created_at timestamptz not null default now());
+create table if not exists public.project_updates(id uuid primary key default gen_random_uuid(),project_id uuid not null references public.projects(id) on delete cascade,author_id uuid not null references auth.users(id) on delete cascade,title text not null,body text not null,created_at timestamptz not null default now());
+create table if not exists public.project_comments(id uuid primary key default gen_random_uuid(),project_id uuid not null references public.projects(id) on delete cascade,author_id uuid not null references auth.users(id) on delete cascade,body text not null check(char_length(body) between 2 and 2000),created_at timestamptz not null default now());
+create table if not exists public.project_ratings(id uuid primary key default gen_random_uuid(),project_id uuid not null references public.projects(id) on delete cascade,user_id uuid not null references auth.users(id) on delete cascade,rating smallint not null check(rating between 1 and 5),created_at timestamptz not null default now(),unique(project_id,user_id));
+create table if not exists public.project_favorites(project_id uuid not null references public.projects(id) on delete cascade,user_id uuid not null references auth.users(id) on delete cascade,created_at timestamptz not null default now(),primary key(project_id,user_id));
+create index if not exists projects_status_created_idx on public.projects(status,created_at desc);
+create index if not exists projects_owner_idx on public.projects(owner_id,created_at desc);
+create index if not exists comments_project_idx on public.project_comments(project_id,created_at desc);
+create index if not exists updates_project_idx on public.project_updates(project_id,created_at desc);
+create or replace function public.is_moderator() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='moderator') $$;
+create or replace function public.touch_updated_at() returns trigger language plpgsql as $$ begin new.updated_at=now(); return new; end; $$;
+drop trigger if exists profiles_touch_updated_at on public.profiles;
+create trigger profiles_touch_updated_at before update on public.profiles for each row execute function public.touch_updated_at();
+drop trigger if exists projects_touch_updated_at on public.projects;
+create trigger projects_touch_updated_at before update on public.projects for each row execute function public.touch_updated_at();
+create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path=public as $$ declare assigned_role text:='member'; begin if lower(coalesce(new.email,''))='jarkpruden@gmail.com' then assigned_role:='moderator'; end if; insert into public.profiles(id,display_name,role) values(new.id,coalesce(new.raw_user_meta_data->>'display_name',split_part(coalesce(new.email,''),'@',1)),assigned_role) on conflict(id) do nothing; return new; end; $$;
+drop trigger if exists on_auth_user_created_arc on auth.users;
+create trigger on_auth_user_created_arc after insert on auth.users for each row execute function public.handle_new_user();
+alter table public.profiles enable row level security; alter table public.projects enable row level security; alter table public.project_milestones enable row level security; alter table public.project_updates enable row level security; alter table public.project_comments enable row level security; alter table public.project_ratings enable row level security; alter table public.project_favorites enable row level security;
+create policy "Profiles visible to signed in users" on public.profiles for select to authenticated using(true);
+create policy "Users update own profile" on public.profiles for update to authenticated using(id=auth.uid()) with check(id=auth.uid() and role='member');
+create policy "Public sees approved projects" on public.projects for select to anon,authenticated using(status='approved' or owner_id=auth.uid() or public.is_moderator());
+create policy "Members submit projects" on public.projects for insert to authenticated with check(owner_id=auth.uid() and status='pending');
+create policy "Owners edit unapproved projects" on public.projects for update to authenticated using(owner_id=auth.uid() and status in('pending','changes_requested')) with check(owner_id=auth.uid() and status in('pending','changes_requested'));
+create policy "Moderators review projects" on public.projects for update to authenticated using(public.is_moderator()) with check(public.is_moderator());
+create policy "Milestones visible for public projects" on public.project_milestones for select to anon,authenticated using(exists(select 1 from public.projects p where p.id=project_id and (p.status='approved' or p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Project owners manage milestones" on public.project_milestones for all to authenticated using(exists(select 1 from public.projects p where p.id=project_id and (p.owner_id=auth.uid() or public.is_moderator()))) with check(exists(select 1 from public.projects p where p.id=project_id and (p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Updates visible for public projects" on public.project_updates for select to anon,authenticated using(exists(select 1 from public.projects p where p.id=project_id and (p.status='approved' or p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Owners and moderators publish updates" on public.project_updates for insert to authenticated with check(author_id=auth.uid() and exists(select 1 from public.projects p where p.id=project_id and (p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Comments visible for public projects" on public.project_comments for select to anon,authenticated using(exists(select 1 from public.projects p where p.id=project_id and p.status='approved'));
+create policy "Signed in users comment on public projects" on public.project_comments for insert to authenticated with check(author_id=auth.uid() and exists(select 1 from public.projects p where p.id=project_id and p.status='approved'));
+create policy "Users delete own comments" on public.project_comments for delete to authenticated using(author_id=auth.uid() or public.is_moderator());
+create policy "Ratings visible for public projects" on public.project_ratings for select to anon,authenticated using(exists(select 1 from public.projects p where p.id=project_id and p.status='approved'));
+create policy "Users rate public projects" on public.project_ratings for insert to authenticated with check(user_id=auth.uid() and exists(select 1 from public.projects p where p.id=project_id and p.status='approved'));
+create policy "Users update own ratings" on public.project_ratings for update to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
+create policy "Users view own favourites" on public.project_favorites for select to authenticated using(user_id=auth.uid());
+create policy "Users favourite public projects" on public.project_favorites for insert to authenticated with check(user_id=auth.uid() and exists(select 1 from public.projects p where p.id=project_id and p.status='approved'));
+create policy "Users remove own favourites" on public.project_favorites for delete to authenticated using(user_id=auth.uid());
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('arc-project-assets','arc-project-assets',false,5242880,array['image/jpeg','image/png','image/webp','application/pdf']) on conflict(id) do nothing;
+create policy "Project assets visible when approved" on storage.objects for select to anon,authenticated using(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.status='approved' or p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Project owners upload assets" on storage.objects for insert to authenticated with check(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Project owners update assets" on storage.objects for update to authenticated using(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or public.is_moderator()))) with check(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or public.is_moderator())));
+create policy "Project owners delete assets" on storage.objects for delete to authenticated using(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or public.is_moderator())));
+grant usage on schema public to anon,authenticated;
+grant select on public.projects,public.project_milestones,public.project_updates,public.project_comments,public.project_ratings to anon,authenticated;
+grant select,insert,update on public.profiles to authenticated;
+grant insert,update on public.projects to authenticated;
+grant select,insert,update,delete on public.project_milestones to authenticated;
+grant select,insert on public.project_updates to authenticated;
+grant select,insert,delete on public.project_comments to authenticated;
+grant select,insert,update on public.project_ratings to authenticated;
+grant select,insert,delete on public.project_favorites to authenticated;
