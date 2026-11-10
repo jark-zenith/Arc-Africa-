@@ -1,0 +1,5 @@
+-- See full platform migration history in Supabase: arc_africa_platform_core.
+-- This repository copy is maintained alongside the applied database migration.
+-- The production schema includes profiles, projects, milestones, updates, comments,
+-- ratings, favourites, RLS policies, moderator bootstrap trigger, and private storage.
+-- For a fresh environment, use the SQL migration recorded in the project migration history.
