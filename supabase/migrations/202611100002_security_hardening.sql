@@ -1,0 +1,40 @@
+-- Move security-definer helpers out of the exposed public schema.
+create schema if not exists private;
+grant usage on schema private to anon,authenticated;
+drop policy if exists "Public sees approved projects" on public.projects;
+drop policy if exists "Moderators review projects" on public.projects;
+drop policy if exists "Milestones visible for public projects" on public.project_milestones;
+drop policy if exists "Project owners manage milestones" on public.project_milestones;
+drop policy if exists "Updates visible for public projects" on public.project_updates;
+drop policy if exists "Owners and moderators publish updates" on public.project_updates;
+drop policy if exists "Users delete own comments" on public.project_comments;
+drop policy if exists "Project assets visible when approved" on storage.objects;
+drop policy if exists "Project owners upload assets" on storage.objects;
+drop policy if exists "Project owners update assets" on storage.objects;
+drop policy if exists "Project owners delete assets" on storage.objects;
+drop trigger if exists on_auth_user_created_arc on auth.users;
+drop function if exists public.handle_new_user();
+drop function if exists public.is_moderator();
+create or replace function private.is_moderator() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='moderator') $$;
+grant execute on function private.is_moderator() to anon,authenticated;
+create or replace function private.handle_new_user() returns trigger language plpgsql security definer set search_path=public as $$
+declare assigned_role text:='member';
+begin
+ if lower(coalesce(new.email,''))='jarkpruden@gmail.com' then assigned_role:='moderator'; end if;
+ insert into public.profiles(id,display_name,role) values(new.id,coalesce(new.raw_user_meta_data->>'display_name',split_part(coalesce(new.email,''),'@',1)),assigned_role) on conflict(id) do nothing;
+ return new;
+end; $$;
+revoke all on function private.handle_new_user() from public,anon,authenticated;
+create trigger on_auth_user_created_arc after insert on auth.users for each row execute function private.handle_new_user();
+create or replace function public.touch_updated_at() returns trigger language plpgsql set search_path=public as $$ begin new.updated_at=now(); return new; end; $$;
+create policy "Public sees approved projects" on public.projects for select to anon,authenticated using(status='approved' or owner_id=auth.uid() or private.is_moderator());
+create policy "Moderators review projects" on public.projects for update to authenticated using(private.is_moderator()) with check(private.is_moderator());
+create policy "Milestones visible for public projects" on public.project_milestones for select to anon,authenticated using(exists(select 1 from public.projects p where p.id=project_id and (p.status='approved' or p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Project owners manage milestones" on public.project_milestones for all to authenticated using(exists(select 1 from public.projects p where p.id=project_id and (p.owner_id=auth.uid() or private.is_moderator()))) with check(exists(select 1 from public.projects p where p.id=project_id and (p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Updates visible for public projects" on public.project_updates for select to anon,authenticated using(exists(select 1 from public.projects p where p.id=project_id and (p.status='approved' or p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Owners and moderators publish updates" on public.project_updates for insert to authenticated with check(author_id=auth.uid() and exists(select 1 from public.projects p where p.id=project_id and (p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Users delete own comments" on public.project_comments for delete to authenticated using(author_id=auth.uid() or private.is_moderator());
+create policy "Project assets visible when approved" on storage.objects for select to anon,authenticated using(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.status='approved' or p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Project owners upload assets" on storage.objects for insert to authenticated with check(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Project owners update assets" on storage.objects for update to authenticated using(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or private.is_moderator()))) with check(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or private.is_moderator())));
+create policy "Project owners delete assets" on storage.objects for delete to authenticated using(bucket_id='arc-project-assets' and exists(select 1 from public.projects p where p.id::text=(storage.foldername(name))[1] and (p.owner_id=auth.uid() or private.is_moderator())));
