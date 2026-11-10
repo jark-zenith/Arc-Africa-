@@ -12,7 +12,7 @@ const indexes = [
   'projects_reviewed_by_idx'
 ];
 for (const name of indexes) {
-  assert.match(sql, new RegExp('create index if not exists ' + name + '\\b', 'i'), 'missing foreign-key index: ' + name);
+  assert.ok(sql.toLowerCase().includes('create index if not exists ' + name + ' on'), 'missing foreign-key index: ' + name);
 }
 
 const policies = [
@@ -34,18 +34,18 @@ const policies = [
   'Users remove own favourites'
 ];
 
-const statements = [...sql.matchAll(/create policy[\\s\\S]*?;/gi)].map(match => match[0]);
+const statements = sql.split(';').map(part => part.trim()).filter(part => part.toLowerCase().startsWith('create policy '));
 assert.equal(statements.length, policies.length, 'expected every existing application policy to be recreated exactly once');
 for (const name of policies) {
   assert.ok(sql.includes('drop policy if exists "' + name + '"'), 'missing policy replacement drop: ' + name);
   assert.ok(sql.includes('create policy "' + name + '"'), 'missing policy replacement create: ' + name);
 }
 for (const statement of statements) {
-  assert.doesNotMatch(statement, /(?<!select )auth\\.uid\\(\\)/i, 'auth.uid() must be wrapped in a scalar SELECT');
-  assert.doesNotMatch(statement, /(?<!select )private\\.is_moderator\\(\\)/i, 'moderator helper must be wrapped in a scalar SELECT');
+  assert.ok(!statement.replaceAll('(select auth.uid())', '').includes('auth.uid()'), 'auth.uid() must be wrapped in a scalar SELECT');
+  assert.ok(!statement.replaceAll('(select private.is_moderator())', '').includes('private.is_moderator()'), 'moderator helper must be wrapped in a scalar SELECT');
 }
 
-// Preserve the privacy gates: only approved projects are public; owners and moderators retain their scoped access.
-assert.match(sql, /status = 'approved'/i);
-assert.match(sql, /status in \\('pending', 'changes_requested'\\)/i);
+// Preserve the privacy gates: only approved projects are public; owners can edit only unapproved submissions.
+assert.ok(sql.includes("status = 'approved'"));
+assert.ok(sql.includes("status in ('pending', 'changes_requested')"));
 console.log('Arc Africa query-performance migration checks passed.');
