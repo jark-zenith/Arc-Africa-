@@ -13,3 +13,4 @@ jobs:
         with:
           node-version: 24
       - run: node tests/smoke.mjs
+      - run: node tests/rls-performance.mjs
