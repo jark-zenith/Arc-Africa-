@@ -1,6 +1,6 @@
 window.ARC_CONFIG = {
   supabaseUrl: "https://zlhvczgjzgmiugdjfmgj.supabase.co",
-  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXAiLCJyZWYiOiJ6bGh2Y3pnanpnbWl1Z2RqZm1naiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzk0Mjg3NjI2LCJleHAiOjIxMDk4NjM2MjZ9.fake",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsaHZjemdqemdtaXVnZGpmbWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyODc2MjYsImV4cCI6MjEwOTg2MzYyNn0.n6ZAmDCRUTgG9gb7-oGOKZJZl8NDTcm5kmLTZV8dB4s",
   googleOAuthConfigured: false
 };
 document.addEventListener('DOMContentLoaded', () => {
