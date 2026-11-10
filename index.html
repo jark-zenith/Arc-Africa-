@@ -23,6 +23,13 @@
 
   <main>
     <section class="hero">
+      <div class="hero-showcase" aria-hidden="true">
+        <div class="hero-scene scene-skyline is-active"></div>
+        <div class="hero-scene scene-green-spire"></div>
+        <div class="hero-scene scene-starship"></div>
+        <div class="hero-scene scene-lunar-city"></div>
+        <div class="hero-scene scene-orbital"></div>
+      </div>
       <div class="hero-grid"></div>
       <div class="hero-copy">
         <div class="eyebrow"><span class="pulse"></span> A community for African builders</div>
@@ -39,6 +46,16 @@
         <div class="art-dot dot-a"></div><div class="art-dot dot-b"></div><div class="art-dot dot-c"></div>
       </div>
       <div class="hero-bottom"><span>01 / DISCOVER</span><span>02 / CONNECT</span><span>03 / BUILD</span><span>04 / GROW</span></div>
+      <div class="hero-showcase-ui">
+        <div class="showcase-caption"><span class="showcase-kicker">IMAGINED TOMORROWS</span><strong id="showcaseTitle">The next skyline</strong><small id="showcaseSubtitle">Concept architecture · Fictional showcase</small></div>
+        <div class="showcase-controls" role="group" aria-label="Choose concept scene">
+          <button class="showcase-dot is-active" type="button" aria-label="Show futuristic skyline" aria-pressed="true"></button>
+          <button class="showcase-dot" type="button" aria-label="Show green research tower" aria-pressed="false"></button>
+          <button class="showcase-dot" type="button" aria-label="Show starship" aria-pressed="false"></button>
+          <button class="showcase-dot" type="button" aria-label="Show lunar city" aria-pressed="false"></button>
+          <button class="showcase-dot" type="button" aria-label="Show orbital station" aria-pressed="false"></button>
+        </div>
+      </div>
     </section>
 
     <section class="section discover-section" id="discover">
@@ -65,5 +82,34 @@
   <div class="modal-backdrop hidden" id="detailModal"><section class="modal detail-modal"><button class="modal-close" data-close aria-label="Close">×</button><div id="detailContent"></div></section></div>
   <div class="modal-backdrop hidden" id="accountModal"><section class="modal account-modal"><button class="modal-close" data-close aria-label="Close">×</button><div id="accountContent"></div></section></div>
   <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      const scenes = [
+        { title: 'The next skyline', subtitle: 'Concept architecture · Fictional showcase' },
+        { title: 'Verdant Spire', subtitle: 'Future research campus · Fictional showcase' },
+        { title: 'Beyond the atmosphere', subtitle: 'Interplanetary starship · Fictional showcase' },
+        { title: 'A city on the Moon', subtitle: 'Lunar habitat concept · Fictional showcase' },
+        { title: 'Orbiting tomorrow', subtitle: 'Orbital research station · Fictional showcase' }
+      ];
+      const layers = [...document.querySelectorAll('.hero-scene')];
+      const dots = [...document.querySelectorAll('.showcase-dot')];
+      const title = document.getElementById('showcaseTitle');
+      const subtitle = document.getElementById('showcaseSubtitle');
+      if (!layers.length || !dots.length || !title || !subtitle) return;
+      let current = 0;
+      let timer;
+      const show = (index) => {
+        current = (index + scenes.length) % scenes.length;
+        layers.forEach((layer, i) => layer.classList.toggle('is-active', i === current));
+        dots.forEach((dot, i) => { dot.classList.toggle('is-active', i === current); dot.setAttribute('aria-pressed', String(i === current)); });
+        title.textContent = scenes[current].title;
+        subtitle.textContent = scenes[current].subtitle;
+      };
+      dots.forEach((dot, i) => dot.addEventListener('click', () => { show(i); restart(); }));
+      const restart = () => { if (timer) clearInterval(timer); if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) timer = setInterval(() => show(current + 1), 6500); };
+      restart();
+    })();
+  </script>
 </body>
 </html>
