@@ -63,7 +63,12 @@
         <div><div class="eyebrow dark-eyebrow">The project directory</div><h2>Discover what’s <em>possible.</em></h2><p>Explore ideas and initiatives from across the continent.</p></div>
         <button class="btn btn-dark" id="submitProjectBtn">Submit a project <span>↗</span></button>
       </div>
-      <div class="filter-bar"><label class="searchbox"><span>⌕</span><input id="searchInput" type="search" placeholder="Search projects, topics or keywords…"></label><select id="categoryFilter"><option value="">All categories</option><option>Technology</option><option>Climate & Energy</option><option>Education</option><option>Health</option><option>Agriculture</option><option>Community</option><option>Creative</option><option>Other</option></select><select id="stageFilter"><option value="">All stages</option><option value="idea">Idea</option><option value="prototype">Prototype</option><option value="pilot">Pilot</option><option value="launched">Launched</option></select></div>
+      <div class="filter-bar">
+        <label class="searchbox"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" aria-label="Search approved projects by name, description, topic or keyword" placeholder="Search projects, topics or keywords…"></label>
+        <select id="categoryFilter" aria-label="Filter projects by category"><option value="">All categories</option><option>Technology</option><option>Climate & Energy</option><option>Education</option><option>Health</option><option>Agriculture</option><option>Community</option><option>Creative</option><option>Other</option></select>
+        <select id="stageFilter" aria-label="Filter projects by stage"><option value="">All stages</option><option value="idea">Idea</option><option value="prototype">Prototype</option><option value="pilot">Pilot</option><option value="launched">Launched</option></select>
+        <select id="countryFilter" aria-label="Filter projects by country"><option value="">All countries</option></select>
+      </div>
       <div class="results-meta"><span id="resultsCount">Loading projects…</span><span class="live-label"><i></i> Live community directory</span></div>
       <div class="project-grid" id="projectGrid"><div class="empty-state"><div class="loader"></div><p>Loading community projects…</p></div></div>
     </section>
