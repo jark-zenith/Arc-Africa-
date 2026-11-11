@@ -1,6 +1,7 @@
 # Arc Africa
 
 Arc Africa is a community project discovery and collaboration platform. Public browsing is open; accounts are required to submit projects, save favourites, rate, and comment. New submissions remain private until a moderator approves them.
+The public directory supports keyword search across project names, summaries, descriptions, tags and locations, plus category, stage and country filters.
 
 ## Stack
 - Static HTML/CSS/JavaScript frontend (Render static site)
