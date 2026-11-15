@@ -4,7 +4,7 @@ import { safeHttpUrl } from '../security.js';
 const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
 const html=read('../index.html'),js=read('../app.js'),css=read('../styles.css');
 for(const t of ['Arc Africa','authModal','projectModal','detailModal','countryFilter','community','membershipModal','accountModal'])assert.ok(html.includes(t),'missing HTML: '+t);
-for(const t of ['signUp','signInWithPassword','resetPasswordForEmail','member_applications','community_posts','loadModerationQueue','openAdminDashboard','loadAdminApplications','loadAdminMembers','filterProjects','getCountryOptions','adminMetrics'])assert.ok(js.includes(t),'missing app capability: '+t);
+for(const t of ['signUp','signInWithPassword','resetPasswordForEmail','member_applications','community_posts','loadModerationQueue','openAdminDashboard','loadModerationQueue();loadCommunityModerationQueue()','loadAdminApplications','loadAdminMembers','filterProjects','getCountryOptions','adminMetrics'])assert.ok(js.includes(t),'missing app capability: '+t);
 assert.ok(css.includes('@media(max-width:650px)'),'responsive styles missing');assert.ok(css.includes('.admin-dashboard'),'admin dashboard styles missing');
 assert.ok(!/service[_-]?role/i.test(html+js),'service role key must never be shipped to browser');
 assert.equal(safeHttpUrl('https://example.com/path?q=1'),'https://example.com/path?q=1');
