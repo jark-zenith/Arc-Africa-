@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const js=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+const sql=readFileSync(new URL('../supabase/migrations/202611150001_arc_africa_community_hub.sql',import.meta.url),'utf8');
+const edge=readFileSync(new URL('../supabase/functions/review-member-application/index.ts',import.meta.url),'utf8');
+for (const token of ['communityGrid','membershipModal','communityPostModal','membershipForm','communityPostForm','communityTypeFilter','name=\"email\"','name=\"github_username\"','name=\"linkedin_url\"','name=\"portfolio_url\"','name=\"commitment\"']) assert.ok(html.includes(token),'missing HTML control: '+token);
+for (const token of ['submitMembershipApplication','github_username','linkedin_url','portfolio_url','review-member-application','loadMembershipQueue']) assert.ok(js.includes(token),'missing application capability: '+token);
+for (const token of ['member_applications','community_posts','enable row level security','private.is_approved_member()','Public submits membership applications','cardinality(interests) > 0','applicant_name','github_username','linkedin_url','portfolio_url','commitment_accepted','Public reads approved community posts','Approved members submit community posts','Approved members submit projects','revoke update on public.profiles']) assert.ok(sql.toLowerCase().includes(token.toLowerCase()),'missing database control: '+token);
+for (const token of ['auth.getUser','role','generateLink','api.resend.com/emails','RESEND_API_KEY','email_sent']) assert.ok(edge.includes(token),'missing approval email control: '+token);
+const ids=[...html.matchAll(/\bid=\"([^\"]+)\"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'HTML IDs must be unique');
+assert.ok(!/service[_-]?role/i.test(html+js),'privileged key must not ship to browser');
+console.log('Arc Africa community and application checks passed.');

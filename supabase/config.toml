@@ -1,0 +1,2 @@
+[functions.review-member-application]
+verify_jwt = true
