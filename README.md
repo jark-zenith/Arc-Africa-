@@ -25,3 +25,13 @@ For production email verification and password recovery, set the Supabase Auth S
 
 ## Moderation model
 Project submissions default to `pending`; only approved projects are publicly discoverable. Owners can edit pending or changes-requested submissions. Moderators can approve, reject, or request changes. Public fundraising or investment collection is not implemented; the platform only supports project discovery and expressions of interest through external project links.
+
+## Community hub (first phase)
+
+Arc Africa is launching Kenya-first with application-based publishing membership. Public visitors can browse approved content. New contributors apply for membership; moderators approve or return applications. Existing profiles are grandfathered as approved by the community-hub migration.
+
+Approved members can submit projects (existing workflow) and moderated community posts: upcoming technology events, jobs/internships/grants/programmes, technology issues and discussions, and Journal articles/tutorials. All submissions remain pending until a moderator approves them.
+
+Apply the new migration `supabase/migrations/202611150001_arc_africa_community_hub.sql` to the Arc Africa Supabase project before deploying the matching frontend. Do not expose a service-role key in the browser.
+
+Supabase remains the primary backend because the platform already uses relational Postgres data, Auth, Storage and RLS. Firebase may be useful later for a separate mobile/offline-first feature, but migrating this relational community platform is not recommended.

@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const js=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+const sql=readFileSync(new URL('../supabase/migrations/202611150001_arc_africa_community_hub.sql',import.meta.url),'utf8');
+for (const token of ['community','communityGrid','membershipModal','communityPostModal','membershipForm','communityPostForm','communityTypeFilter','data-community-filter="event"','data-community-filter="article"']) assert.ok(html.includes(token),'missing community HTML: '+token);
+for (const token of ['loadCommunityPosts','submitCommunityPost','submitMembershipApplication','requireApprovedMember','reviewMembershipApplication','reviewCommunityPost']) assert.ok(js.includes(token),'missing community capability: '+token);
+for (const token of ['member_applications','community_posts','enable row level security','private.is_approved_member()','Public reads approved community posts','Approved members submit community posts','Approved members submit projects','revoke update on public.profiles',"post_type <> 'event' or starts_at is not null","post_type <> 'opportunity' or deadline_at is not null","registration_url is null or registration_url ~* '^https?://'"]) assert.ok(sql.toLowerCase().includes(token.toLowerCase()),'missing database security control: '+token);
+assert.ok(sql.includes("update public.profiles set membership_status='approved' where membership_status='not_applied'"),'existing members must retain access');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]);
+assert.equal(new Set(ids).size,ids.length,'HTML IDs must be unique');
+assert.ok(!/service[_-]?role/i.test(html+js),'service role must never be shipped to browser');
+console.log('Arc Africa community checks passed.');
