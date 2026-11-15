@@ -11,7 +11,7 @@ create table if not exists public.member_applications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references public.profiles(id) on delete cascade,
   county text not null check (char_length(county) between 2 and 80),
-  interests text[] not null default '{}',
+  interests text[] not null default '{}' check (cardinality(interests) > 0),
   experience text not null default '',
   motivation text not null check (char_length(motivation) between 30 and 1500),
   status text not null default 'pending' check (status in ('pending','approved','rejected','changes_requested')),
