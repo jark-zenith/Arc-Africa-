@@ -9,7 +9,13 @@ update public.profiles set membership_status='approved' where membership_status=
 
 create table if not exists public.member_applications (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null unique references public.profiles(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete set null,
+  applicant_name text not null check (char_length(applicant_name) between 2 and 100),
+  email text not null check (email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'),
+  github_username text not null check (github_username ~ '^[A-Za-z0-9-]{1,39}$'),
+  linkedin_url text not null check (linkedin_url ~* '^https://(www\.)?linkedin\.com/.*'),
+  portfolio_url text check (portfolio_url is null or portfolio_url ~* '^https?://'),
+  commitment_accepted boolean not null default false check (commitment_accepted),
   county text not null check (char_length(county) between 2 and 80),
   interests text[] not null default '{}' check (cardinality(interests) > 0),
   experience text not null default '',
@@ -56,6 +62,9 @@ create table if not exists public.community_posts (
   check (external_url is null or external_url ~* '^https?://')
 );
 
+create unique index if not exists member_applications_user_unique_idx on public.member_applications(user_id) where user_id is not null;
+create unique index if not exists member_applications_email_unique_idx on public.member_applications(lower(email));
+create unique index if not exists member_applications_github_unique_idx on public.member_applications(lower(github_username));
 create index if not exists member_applications_status_created_idx on public.member_applications(status, created_at);
 create index if not exists community_posts_status_created_idx on public.community_posts(status, created_at desc);
 create index if not exists community_posts_type_status_created_idx on public.community_posts(post_type, status, created_at desc);
@@ -102,8 +111,9 @@ alter table public.community_posts enable row level security;
 
 create policy "Applicants view own application or moderators view all" on public.member_applications
 for select to authenticated using (user_id=auth.uid() or (select private.is_moderator()));
-create policy "Users submit own membership application" on public.member_applications
-for insert to authenticated with check (user_id=auth.uid() and status='pending' and reviewed_by is null and reviewed_at is null);
+drop policy if exists "Users submit own membership application" on public.member_applications;
+create policy "Public submits membership applications" on public.member_applications
+for insert to anon,authenticated with check (status='pending' and reviewed_by is null and reviewed_at is null and (user_id is null or user_id=auth.uid()));
 create policy "Users resubmit returned applications" on public.member_applications
 for update to authenticated using (user_id=auth.uid() and status in ('rejected','changes_requested'))
 with check (user_id=auth.uid() and status='pending' and reviewed_by is null and reviewed_at is null);
@@ -120,6 +130,7 @@ with check (author_id=auth.uid() and status in ('pending','changes_requested'));
 create policy "Moderators review community posts" on public.community_posts
 for update to authenticated using ((select private.is_moderator())) with check ((select private.is_moderator()));
 
-grant select, insert, update on public.member_applications to authenticated;
+grant select, insert on public.member_applications to anon,authenticated;
+grant update on public.member_applications to authenticated;
 grant select, insert, update on public.community_posts to authenticated;
 grant select on public.community_posts to anon;

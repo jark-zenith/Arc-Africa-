@@ -35,3 +35,10 @@ Approved members can submit projects (existing workflow) and moderated community
 Apply the new migration `supabase/migrations/202611150001_arc_africa_community_hub.sql` to the Arc Africa Supabase project before deploying the matching frontend. Do not expose a service-role key in the browser.
 
 Supabase remains the primary backend because the platform already uses relational Postgres data, Auth, Storage and RLS. Firebase may be useful later for a separate mobile/offline-first feature, but migrating this relational community platform is not recommended.
+
+
+## Membership applications and approval email
+
+Applications are public submissions and do not require an account. Full name, email, GitHub username, LinkedIn profile, county, technology interests, motivation and acceptance of the community commitment are required; portfolio is optional. GitHub and LinkedIn links are reviewed privately and are not published on member profiles.
+
+Only moderators can review applications. The `review-member-application` Edge Function verifies the moderator session, creates a one-time Supabase invite/sign-in link after approval, sends the decision email through Resend, and only then records the decision. Set the Edge Function secrets `RESEND_API_KEY`, `ARC_AFRICA_FROM_EMAIL` (a sender verified by Resend), and `ARC_AFRICA_SITE_URL`. Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to the function runtime. Never put privileged keys in browser code. If email delivery fails, the application remains pending and can be retried.
