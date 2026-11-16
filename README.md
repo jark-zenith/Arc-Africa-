@@ -49,9 +49,9 @@ The public project directory supports multi-field keyword search and category, s
 
 ## Imagination Lab and concept artwork
 
-The homepage hero and Imagination Lab gallery use 15 visual concept studies supplied by the project owner. They are speculative inspiration and discussion prompts, not a catalogue of released products, completed projects, prototypes, or claims of technical feasibility. The public project directory remains separate and displays community-submitted projects only after moderator approval.
+The homepage hero and Concepts gallery use 15 visual concept studies supplied by the project owner. The gallery is image-led: each complete image links directly to its full-size file. These are speculative visual references, not a catalogue of released products or completed projects. The public project directory remains separate and displays community-submitted projects only after moderator approval.
 
-The Imagination Lab invites builders to ask what problem a concept might solve, research the constraints, collaborate, prototype, test, and document real progress. Concept imagery is stored in `assets/arc-africa/concept-01.jpg` through `concept-15.jpg`.
+Concept imagery is stored in `assets/arc-africa/concept-01.jpg` through `concept-15.jpg`.
 
 ## Future possibilities (not implemented)
 
