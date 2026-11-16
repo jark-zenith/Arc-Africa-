@@ -8,4 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
   tools.type = 'module';
   tools.src = 'owner-tools.js';
   document.head.appendChild(tools);
+  const adminRouter = document.createElement('script');
+  adminRouter.type = 'module';
+  adminRouter.src = 'admin-router.js';
+  document.head.appendChild(adminRouter);
 });
