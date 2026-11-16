@@ -45,3 +45,14 @@ Only moderators can review applications. The `review-member-application` Edge Fu
 
 ## Discovery and administration
 The public project directory supports multi-field keyword search and category, stage and country filters. Approved moderators can switch from their personal dashboard to the admin control room to review applications, search the member directory, moderate projects and community posts, and monitor recent application activity.
+
+
+## Imagination Lab and concept artwork
+
+The homepage hero and Imagination Lab gallery use 15 visual concept studies supplied by the project owner. They are speculative inspiration and discussion prompts, not a catalogue of released products, completed projects, prototypes, or claims of technical feasibility. The public project directory remains separate and displays community-submitted projects only after moderator approval.
+
+The Imagination Lab invites builders to ask what problem a concept might solve, research the constraints, collaborate, prototype, test, and document real progress. Concept imagery is stored in `assets/arc-africa/concept-01.jpg` through `concept-15.jpg`.
+
+## Future possibilities (not implemented)
+
+The site may describe longer-term ideas such as an Arc Africa Wallet, transparent milestone-based community support, and member/event passes. These are exploratory directions only. No wallet, payment collection, crowdfunding, grants disbursement, or digital pass functionality is implemented. Any future financial feature would require appropriate governance, legal and regulatory review, security controls, transparent accounting, and a separate implementation decision.
