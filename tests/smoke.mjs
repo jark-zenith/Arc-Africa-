@@ -14,5 +14,10 @@ assert.ok(review.includes('Persist the decision first'),'membership decisions mu
 assert.ok(review.includes('email_sent: emailSent'),'approval response must report notification delivery accurately');
 assert.ok(js.includes('emailWarning'),'main moderator UI must report email failure after refreshing the queue');
 assert.ok(!js.includes('the application remains pending'),'main moderator UI must not claim a saved decision is still pending');
-assert.ok(admin.includes('await loadConsole()'),'private admin UI must refresh after a membership decision');\nassert.ok(admin.includes('loadActivity()')&&admin.includes('postgres_changes'),'admin must expose a live member activity feed');\nassert.ok(html.includes('/terms.html')&&html.includes('/privacy.html'),'public footer must link legal documents');\nassert.ok(js.includes('legal_acceptances')&&js.includes('legal_version'),'signup must record legal acceptance');\nassert.ok(terms.includes('Terms of Use')&&privacy.includes('Privacy Policy'),'legal pages must exist');\nassert.ok(audit.includes('capture_arc_member_activity')&&audit.includes('admin_session_overview'),'audit migration must capture member activity and restrict session RPC');
+assert.ok(admin.includes('await loadConsole()'),'private admin UI must refresh after a membership decision');
+assert.ok(admin.includes('loadActivity()')&&admin.includes('postgres_changes'),'admin must expose a live member activity feed');
+assert.ok(html.includes('/terms.html')&&html.includes('/privacy.html'),'public footer must link legal documents');
+assert.ok(js.includes('legal_acceptances')&&js.includes('legal_version'),'signup must record legal acceptance');
+assert.ok(terms.includes('Terms of Use')&&privacy.includes('Privacy Policy'),'legal pages must exist');
+assert.ok(audit.includes('capture_arc_member_activity')&&audit.includes('admin_session_overview'),'audit migration must capture member activity and restrict session RPC');
 console.log('Arc Africa smoke checks passed.');
