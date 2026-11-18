@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { safeHttpUrl } from '../security.js';
 const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
-const html=read('../index.html'),js=read('../app.js'),css=read('../styles.css'),admin=read('../admin.js'),review=read('../supabase/functions/review-member-application/index.ts'),adminConsole=read('../supabase/functions/admin-console/index.ts'),terms=read('../terms.html'),privacy=read('../privacy.html'),audit=read('../supabase/migrations/202611180001_member_activity_privacy_audit.sql');
+const html=read('../index.html'),js=read('../app.js'),css=read('../styles.css'),admin=read('../admin.js'),review=read('../supabase/functions/review-member-application/index.ts'),adminConsole=read('../supabase/functions/admin-console/index.ts'),terms=read('../terms.html'),privacy=read('../privacy.html'),audit=read('../supabase/migrations/202611180001_member_activity_privacy_audit.sql'),authSessionAudit=read('../supabase/migrations/202611180005_audit_member_auth_session_events.sql');
 for(const t of ['Arc Africa','authModal','projectModal','detailModal','countryFilter','community','membershipModal','accountModal'])assert.ok(html.includes(t),'missing HTML: '+t);
 for(const t of ['signUp','signInWithPassword','resetPasswordForEmail','member_applications','community_posts','loadModerationQueue','openAdminDashboard','loadModerationQueue();loadCommunityModerationQueue()','loadAdminApplications','loadAdminMembers','filterProjects','getCountryOptions','adminMetrics'])assert.ok(js.includes(t),'missing app capability: '+t);
 assert.ok(css.includes('@media(max-width:650px)'),'responsive styles missing');assert.ok(css.includes('.admin-dashboard'),'admin dashboard styles missing');
@@ -21,4 +21,5 @@ assert.ok(js.includes('legal_acceptances')&&js.includes('legal_version'),'signup
 assert.ok(terms.includes('Terms of Use')&&privacy.includes('Privacy Policy'),'legal pages must exist');
 assert.ok(audit.includes('capture_arc_member_activity')&&audit.includes('admin_session_overview'),'audit migration must capture member activity and restrict session RPC');
 assert.ok(adminConsole.includes('admin.rpc("admin_session_overview", { p_admin_user_id: user.id })'),'admin Edge Function must pass verified identity to the service-role session RPC');
+assert.ok(authSessionAudit.includes('on auth.sessions')&&authSessionAudit.includes('session_started'),'member sign-in and session revocation events must be audited without blocking auth');
 console.log('Arc Africa smoke checks passed.');
