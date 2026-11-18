@@ -262,7 +262,8 @@ function watchActivity() {
 function exportCsv(filename, rows) {
   if(!rows.length){toast('There is no data to export in this view.');return;}
   const headers=Object.keys(rows[0]);
-  const csv=[headers.join(','),...rows.map(row=>headers.map(key=>`"${String(row[key]??'').replace(/"/g,'""')}"`).join(','))].join('\r\n');
+  const csvCell=value=>{const text=String(value??'');const safe=/^[\s]*[=+\-@]/.test(text)?`'${text}`:text;return `"${safe.replace(/"/g,'""')}"`;};
+  const csv=[headers.map(csvCell).join(','),...rows.map(row=>headers.map(key=>csvCell(row[key])).join(','))].join('\r\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob), link=document.createElement('a');
   link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
   toast('CSV export prepared.');
