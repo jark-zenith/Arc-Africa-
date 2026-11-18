@@ -20,6 +20,8 @@ for(const id of ['userStatusFilter','userPager','userModal','queueSummary','grow
 for(const capability of ['openUserDetail','renderGrowth','exportCsv','renderApplications','renderProjects','renderCommunity','renderMessages'])assert.ok(admin.includes(capability),'missing admin capability: '+capability);
 assert.ok(admin.includes('actor_id===currentUser?.id'),'administrator audit must be separated from member activity');
 assert.ok(admin.includes('safeUrl'),'external submission links must be restricted to HTTP(S) URLs');
+assert.ok(admin.includes('/^[\\s]*[=+\\-@]/'),'CSV exports must neutralise spreadsheet formula injection');
+assert.ok(adminHtml.includes('growth-legend'),'dashboard trend chart must explain its data series');
 assert.ok(adminHtml.includes('Leaked-password protection is currently disabled'),'known authentication hardening task must be visible to the administrator');
 assert.ok(html.includes('/terms.html')&&html.includes('/privacy.html'),'public footer must link legal documents');
 assert.ok(js.includes('legal_acceptances')&&js.includes('legal_version'),'signup must record legal acceptance');
