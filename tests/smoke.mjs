@@ -9,6 +9,7 @@ assert.ok(css.includes('@media(max-width:650px)'),'responsive styles missing');a
 assert.ok(!/service[_-]?role/i.test(html+js),'service role key must never be shipped to browser');
 assert.equal(safeHttpUrl('https://example.com/path?q=1'),'https://example.com/path?q=1');
 for(const value of ['javascript:alert(1)','data:text/html,<script>alert(1)</script>','file:///etc/passwd','//example.com','/relative/path','not a URL',''])assert.equal(safeHttpUrl(value),null);
+assert.ok(js.includes("['moderator','admin'].includes(profile?.role)"),'admin role must have moderator dashboard and project review access');
 assert.ok(review.includes('Persist the decision first'),'membership decisions must persist before email delivery');
 assert.ok(review.includes('email_sent: emailSent'),'approval response must report notification delivery accurately');
 assert.ok(js.includes('emailWarning'),'main moderator UI must report email failure after refreshing the queue');
