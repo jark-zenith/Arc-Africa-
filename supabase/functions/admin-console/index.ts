@@ -37,7 +37,7 @@ Deno.serve(async (req: Request) => {
   const { error: purgeError } = await admin.rpc("purge_arc_activity_audit_events");
   if (purgeError) console.error("Activity retention cleanup failed:", purgeError.message);
 
-  const { data: sessions, error: sessionError } = await admin.rpc("admin_session_overview");
+  const { data: sessions, error: sessionError } = await admin.rpc("admin_session_overview", { p_admin_user_id: user.id });
   if (sessionError) {
     console.error("Session overview failed:", sessionError.message);
     return json({ error: "Could not load session overview" }, 500);
