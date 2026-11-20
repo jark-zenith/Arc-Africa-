@@ -29,6 +29,7 @@ assert.ok(admin.includes('loadActivity()')&&admin.includes('postgres_changes'),'
 assert.ok(admin.includes("payload?.new?.target_type==='member_applications'")&&admin.includes('loadApplications();'),'new membership application activity must refresh the admin review queue');
 assert.ok(admin.includes('applicationPendingCount'),'admin membership queue must expose its pending review count');
 assert.ok(admin.includes('member_application_email_delivery')&&admin.includes('retryApplicationNotification'),'admin must display and retry failed applicant notifications');
+assert.ok(admin.includes("['failed','pending'].includes(delivery?.status)"),'admin must expose retry for failed or interrupted notification attempts');
 assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&html.includes('COMMUNITY ADMINISTRATOR'),'public site must identify its community administrator without exposing private contact details');
 for(const id of ['userStatusFilter','userPager','userModal','queueSummary','growthBars','exportUsers','exportActivity','exportAudit','exportMessages'])assert.ok(adminHtml.includes('id=\"'+id+'\"'),'missing admin control: '+id);
 for(const capability of ['openUserDetail','renderGrowth','exportCsv','renderApplications','renderProjects','renderCommunity','renderMessages'])assert.ok(admin.includes(capability),'missing admin capability: '+capability);
