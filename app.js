@@ -125,12 +125,12 @@ async function submitMembershipApplication(e){
   const row={applicant_name:f.get('applicant_name').trim(),email,github_username:github,linkedin_url:linkedin,portfolio_url:portfolio,county:f.get('county').trim(),interests:f.get('interests').split(',').map(x=>x.trim()).filter(Boolean),experience:f.get('experience').trim(),motivation:f.get('motivation').trim(),commitment_accepted:true,status:'pending'};
   let result;
   if(editingMembershipApplicationId&&currentUser){
-    result=await supabase.from('member_applications').update({...row,moderator_note:null,reviewed_by:null,reviewed_at:null}).eq('id',editingMembershipApplicationId).eq('user_id',currentUser.id);
+    result=await supabase.from('member_applications').update({...row,moderator_note:null,reviewed_by:null,reviewed_at:null}).eq('id',editingMembershipApplicationId).eq('user_id',currentUser.id).select('id').maybeSingle();
   }else{
     result=await supabase.from('member_applications').insert({...row,user_id:currentUser?.id||null});
   }
-  if(result.error){
-    toast(result.error.code==='23505'?'An application for this email or GitHub account already exists. Contact the team if you need help.':result.error.message);
+  if(result.error||(editingMembershipApplicationId&&!result.data)){
+    toast(result.error?.code==='23505'?'An application for this email or GitHub account already exists. Contact the team if you need help.':result.error?.message||'Your application could not be updated. Refresh and try again.');
     return;
   }
   const wasResubmission=!!editingMembershipApplicationId;
