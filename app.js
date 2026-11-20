@@ -168,7 +168,7 @@ async function rateProject(id){if(!currentUser){openAuth('signin');return}const 
 async function postComment(e,id){e.preventDefault();if(!currentUser){openAuth('signin');return}const body=new FormData(e.target).get('body').trim();const {error}=await supabase.from('project_comments').insert({project_id:id,author_id:currentUser.id,body});if(error){toast(error.message);return}toast('Comment posted.');openProject(id)}
 async function uploadArcImage(bucket,file,ownerId,folder){
   if(!file)return null;
-  if(!['image/jpeg','image/png','image/webp','image/avif'].includes(file.type))throw new Error('Choose a JPG, PNG, WebP or AVIF image.');
+  const allowed=bucket==='member-avatars'?['image/jpeg','image/png','image/webp']:['image/jpeg','image/png','image/webp','image/avif'];if(!allowed.includes(file.type))throw new Error(bucket==='member-avatars'?'Choose a JPG, PNG or WebP profile photograph.':'Choose a JPG, PNG, WebP or AVIF project image.');
   const limit=bucket==='member-avatars'?5:10;if(file.size>limit*1024*1024)throw new Error('Image must be smaller than '+limit+' MB.');
   const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/avif':'avif'}[file.type];
   const path=ownerId+'/'+folder+'/'+Date.now()+'-'+crypto.randomUUID()+'.'+ext;
