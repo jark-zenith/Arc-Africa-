@@ -23,6 +23,7 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno check supabase/functions/review-member-application/index.ts
+      - run: deno check supabase/functions/claim-member-application/index.ts
       - run: deno check supabase/functions/admin-console/index.ts
       - run: node tests/rls-performance.mjs
       - run: node tests/community.mjs
