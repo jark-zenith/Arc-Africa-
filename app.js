@@ -6,7 +6,7 @@ const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 let currentUser = null, profile = null, projects = [], communityPosts = [], authMode = 'signup', activeProject = null, toastTimer;
-let applicationOnboardingPending = new URLSearchParams(location.search).get('apply') === '1', applicationOnboardingBusy = false;
+let applicationOnboardingPending = new URLSearchParams(location.search).get('apply') === '1', membershipWelcomePending = new URLSearchParams(location.search).get('welcome') === '1', applicationOnboardingBusy = false;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slugify = s => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70) + '-' + Math.random().toString(36).slice(2,7);
 const money = n => n == null ? 'Not specified' : new Intl.NumberFormat('en-KE',{style:'currency',currency:'KES',maximumFractionDigits:0}).format(n);
@@ -33,11 +33,13 @@ function prefillMembershipApplication(){
   if(emailField&&!emailField.value)emailField.value=currentUser.email||'';
 }
 async function handleApplicationOnboarding(){
-  if(!applicationOnboardingPending||!currentUser||applicationOnboardingBusy)return;
+  if((!applicationOnboardingPending&&!membershipWelcomePending)||!currentUser||applicationOnboardingBusy)return;
   applicationOnboardingBusy=true;
   try{
     await loadProfile();
-    if(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)){
+    if(membershipWelcomePending){
+      toast(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)?'Your Arc Africa membership is active. Welcome to the community.':'Welcome to Arc Africa. Your account is ready.');
+    }else if(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)){
       toast('Your Arc Africa membership is active. Welcome to the community.');
     }else if(profile?.membership_status==='pending'){
       toast('Your membership application is already awaiting moderator review.');
@@ -61,8 +63,10 @@ async function handleApplicationOnboarding(){
   }finally{
     const url=new URL(location.href);
     url.searchParams.delete('apply');
+    url.searchParams.delete('welcome');
     history.replaceState({},'',url.pathname+url.search+url.hash);
     applicationOnboardingPending=false;
+    membershipWelcomePending=false;
     applicationOnboardingBusy=false;
   }
 }
