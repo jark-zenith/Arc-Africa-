@@ -169,7 +169,7 @@ function renderApplications() {
   $('#applicationsRows').innerHTML = rows.map(item => {
     const delivery=item.emailDelivery;
     const deliveryLabel=!delivery?'Email status not recorded':delivery.status==='sent'?'Email sent':delivery.status==='failed'?'Email failed':'Email pending';
-    const retryButton=delivery?.status==='failed'?'<button data-retry-email="'+esc(item.id)+'">Retry email</button>':'';
+    const retryButton=['failed','pending'].includes(delivery?.status)?'<button data-retry-email="'+esc(item.id)+'">Retry email</button>':'';
     const decisionButtons=(item.status!=='approved'?'<button data-app="'+esc(item.id)+'" data-status="approved">Approve</button>':'')+
       (item.status!=='rejected'?'<button class="reject" data-app="'+esc(item.id)+'" data-status="rejected">Reject</button>':'')+
       '<button data-app="'+esc(item.id)+'" data-status="changes_requested">Request info</button>';
