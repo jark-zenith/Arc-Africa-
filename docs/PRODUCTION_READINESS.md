@@ -81,6 +81,7 @@ The owner administrator account and a separate member account both exist. Preser
 | `supabase/config.toml` | Supabase CLI project/function configuration |
 | `supabase/functions/admin-console/index.ts` | Verifies the administrator and returns protected console/session data using the service-role client |
 | `supabase/functions/review-member-application/index.ts` | Verifies moderator access, provisions/links approved member accounts, persists decisions and tracks/sends applicant notifications |
+| `supabase/functions/claim-member-application/index.ts` | Links a verified account to an earlier anonymous application with the same email, without exposing other applicants' records |
 
 ### Static assets
 
@@ -184,6 +185,7 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 - [x] Pending application count in the admin console.
 - [x] Verified signup redirect into membership application onboarding, with existing-application status checks and applicant name/email prefill.
 - [x] Applicant resubmission flow for returned/rejected linked applications, including visible moderator feedback and clearing old review metadata under restrictive RLS checks.
+- [x] Securely link a verified account to an earlier anonymous application using a service-role Edge Function.
 - [x] Approval invitation welcome redirect handling.
 - [x] Private email-delivery outbox and retry action in code.
 - [x] Restrictive membership application RLS/column-grant migration drafted.
