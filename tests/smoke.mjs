@@ -22,6 +22,7 @@ assert.ok(emailDelivery.includes('enable row level security')&&emailDelivery.inc
 assert.ok(emailDelivery.includes('user_id = (select auth.uid())')&&emailDelivery.includes('moderator_note is null')&&emailDelivery.includes('reviewed_by is null')&&emailDelivery.includes('reviewed_at is null'),'public applications must not spoof applicant identity or moderation metadata');
 assert.ok(emailDelivery.includes('reviewed_by,\n  reviewed_at\n) on public.member_applications to authenticated'),'returned applications must only clear reviewer metadata when resubmitting');
 assert.ok(emailDelivery.includes('revoke all on table public.member_applications from anon, authenticated')&&emailDelivery.includes('grant insert ('),'membership submission must use restricted column-level grants');
+assert.ok(emailDelivery.includes('revoke all (')&&emailDelivery.includes('moderator_note, reviewed_by, reviewed_at, created_at')&&emailDelivery.indexOf('revoke all (')<emailDelivery.indexOf('grant insert ('),'migration must clear pre-existing column-level privileges before granting the least-privilege set');
 assert.ok(js.includes('emailWarning'),'main moderator UI must report email failure after refreshing the queue');
 assert.ok(!js.includes('the application remains pending'),'main moderator UI must not claim a saved decision is still pending');
 assert.ok(admin.includes('await loadConsole()'),'private admin UI must refresh after a membership decision');
