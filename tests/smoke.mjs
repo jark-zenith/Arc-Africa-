@@ -14,6 +14,8 @@ assert.ok(review.indexOf('from("member_applications").update') < review.indexOf(
 assert.ok(review.includes('email_sent: !emailError'),'approval response must report notification delivery accurately');
 assert.ok(review.includes('retry_notification')&&review.includes('member_application_email_delivery'),'membership notification failures must be retryable and recorded');
 assert.ok(emailDelivery.includes('enable row level security')&&emailDelivery.includes('Moderators view membership email delivery'),'email delivery metadata must remain private to moderators');
+assert.ok(emailDelivery.includes('user_id = (select auth.uid())')&&emailDelivery.includes('reviewed_by is null')&&emailDelivery.includes('reviewed_at is null'),'public applications must not spoof applicant identity or moderation metadata');
+assert.ok(emailDelivery.includes('revoke all on table public.member_applications from anon, authenticated')&&emailDelivery.includes('grant insert ('),'membership submission must use restricted column-level grants');
 assert.ok(js.includes('emailWarning'),'main moderator UI must report email failure after refreshing the queue');
 assert.ok(!js.includes('the application remains pending'),'main moderator UI must not claim a saved decision is still pending');
 assert.ok(admin.includes('await loadConsole()'),'private admin UI must refresh after a membership decision');
