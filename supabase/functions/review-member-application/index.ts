@@ -77,15 +77,25 @@ Deno.serve(async (req) => {
   // Email-provider configuration is separate: a missing mail service must not
   // create an approved application with no user account attached.
   if (decision === "approved") {
-    const linkType = memberId ? "magiclink" : "invite";
-    const generated = await admin.auth.admin.generateLink({
-      type: linkType,
+    const linkOptions = {
+      redirectTo: site + "/?welcome=1",
+      data: { display_name: app.applicant_name, membership_status: "approved" }
+    };
+    // A person may have applied anonymously and created an account before review.
+    // Try a magic link first so an existing Auth user is linked; only invite if
+    // Supabase confirms there is no existing user for this email.
+    let generated = await admin.auth.admin.generateLink({
+      type: "magiclink",
       email: app.email,
-      options: {
-        redirectTo: site + "/?welcome=1",
-        ...(linkType === "invite" ? { data: { display_name: app.applicant_name, membership_status: "approved" } } : {})
-      }
+      options: { redirectTo: linkOptions.redirectTo }
     });
+    if (generated.error && !memberId) {
+      generated = await admin.auth.admin.generateLink({
+        type: "invite",
+        email: app.email,
+        options: linkOptions
+      });
+    }
     if (generated.error || !generated.data?.properties?.action_link) {
       return reply({ error: "Could not prepare the secure member sign-in link. No new approval decision was saved; retry after checking Auth configuration." }, 502);
     }
