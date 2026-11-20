@@ -172,13 +172,23 @@ html,body{width:100%;overflow-x:hidden}
 .community-admin-inner>h2 em{color:#e74857;font-style:italic}
 .community-admin-intro{max-width:700px;color:#68798a;font-size:14px;line-height:1.8;margin:0 0 28px}
 .community-admin-card{display:grid;grid-template-columns:112px minmax(0,1fr);gap:26px;align-items:start;padding:30px;border:1px solid #dfe6ed;border-radius:14px;background:#fff;box-shadow:0 14px 38px #10243a0c}
-.community-admin-avatar{width:92px;height:92px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,#318cff,#9bc8ff);color:#071626;font:800 28px Manrope,sans-serif;letter-spacing:-1px}
+.community-admin-avatar{width:132px;height:160px;display:block;object-fit:cover;object-position:center 24%;border-radius:18px;background:#e8eef5;box-shadow:0 14px 34px rgba(8,28,48,.14)}
 .community-admin-role{font:800 9px Manrope,sans-serif;letter-spacing:1.5px;color:#327bc4}
 .community-admin-copy h3{margin:8px 0 3px;color:#102338;font:800 25px Manrope,sans-serif}
 .community-admin-location{margin:0 0 12px!important;color:#718194!important;font-size:12px!important}
 .community-admin-copy p{max-width:760px;margin:0;color:#526477;font-size:13px;line-height:1.85}
-@media(max-width:650px){.community-admin-section{padding:62px 6vw}.community-admin-card{grid-template-columns:1fr;gap:18px;padding:22px}.community-admin-avatar{width:72px;height:72px;font-size:23px}.community-admin-inner>h2{letter-spacing:-.8px}}
+@media(max-width:650px){.community-admin-section{padding:62px 6vw}.community-admin-card{grid-template-columns:1fr;gap:18px;padding:22px}.community-admin-avatar{width:112px;height:136px}.community-admin-inner>h2{letter-spacing:-.8px}}
 
 .email-delivery-status{display:block;margin-top:6px;color:#718194;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
 
 .membership-review-note{margin:0 0 18px;padding:14px 16px;border-left:3px solid #e6a23c;border-radius:8px;background:#fff7e8;color:#684b1e;font-size:13px;line-height:1.7;white-space:pre-wrap}
+
+.admin-submission-details{margin-top:12px;border:1px solid #e5ebf2;border-radius:10px;padding:10px 12px;background:#f8fafc}
+.admin-submission-details summary{cursor:pointer;color:#2367a8;font-size:12px;font-weight:750}
+.admin-submission-details .detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin-top:12px}
+.admin-submission-details .detail-field{min-width:0}
+.admin-submission-details .detail-field strong{display:block;margin-bottom:3px;color:#728196;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+.admin-submission-details .detail-field span{display:block;color:#26384b;font-size:12px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.admin-submission-details .detail-wide{grid-column:1/-1}
+.admin-project-cover{display:block;max-width:220px;max-height:140px;margin:12px 0;border-radius:10px;object-fit:cover}
+@media(max-width:650px){.admin-submission-details .detail-grid{grid-template-columns:1fr}}
