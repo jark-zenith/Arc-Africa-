@@ -38,5 +38,6 @@ assert.ok(js.includes('legal_acceptances')&&js.includes('legal_version'),'signup
 assert.ok(terms.includes('Terms of Use')&&privacy.includes('Privacy Policy'),'legal pages must exist');
 assert.ok(audit.includes('capture_arc_member_activity')&&audit.includes('admin_session_overview'),'audit migration must capture member activity and restrict session RPC');
 assert.ok(adminConsole.includes('admin.rpc("admin_session_overview", { p_admin_user_id: user.id })'),'admin Edge Function must pass verified identity to the service-role session RPC');
+assert.ok(!adminConsole.includes('last_active_at: item.last_active_at'),'admin Edge Function must not read an unsupported Supabase Auth User field');
 assert.ok(authSessionAudit.includes('on auth.sessions')&&authSessionAudit.includes('session_started'),'member sign-in and session revocation events must be audited without blocking auth');
 console.log('Arc Africa smoke checks passed.');
