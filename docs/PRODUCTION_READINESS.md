@@ -176,6 +176,7 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 - [x] Restrictive membership application RLS/column-grant migration drafted.
 - [x] Correct README backend reference and deployment notes.
 - [x] Expand smoke assertions for the new controls and security rules.
+- [x] Remove an unused unsupported `User.last_active_at` field from the admin-console Edge Function response after Deno type-checking exposed it.
 - [ ] Review final PR diff and wait for all checks on the latest commit.
 
 ### Phase 2 — schema and deployment reconciliation
