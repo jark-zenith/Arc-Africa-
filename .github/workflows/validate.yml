@@ -13,6 +13,18 @@ jobs:
         with:
           node-version: 24
       - run: node tests/smoke.mjs
+      - run: node --check app.js
+      - run: node --check admin.js
+      - run: node --check admin-router.js
+      - run: node --check owner-tools.js
+      - run: node --check security.js
+      - run: node --check discovery.mjs
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/review-member-application/index.ts
+      - run: deno check supabase/functions/claim-member-application/index.ts
+      - run: deno check supabase/functions/admin-console/index.ts
       - run: node tests/rls-performance.mjs
       - run: node tests/community.mjs
       - run: node tests/discovery.mjs

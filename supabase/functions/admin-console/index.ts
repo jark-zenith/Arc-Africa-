@@ -53,7 +53,6 @@ Deno.serve(async (req: Request) => {
         email: item.email,
         created_at: item.created_at,
         last_sign_in_at: item.last_sign_in_at,
-        last_active_at: item.last_active_at,
         email_confirmed_at: item.email_confirmed_at,
         banned_until: item.banned_until,
         role: item.app_metadata?.role || "user",

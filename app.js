@@ -6,6 +6,8 @@ const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 let currentUser = null, profile = null, projects = [], communityPosts = [], authMode = 'signup', activeProject = null, toastTimer;
+let applicationOnboardingPending = new URLSearchParams(location.search).get('apply') === '1', membershipWelcomePending = new URLSearchParams(location.search).get('welcome') === '1', applicationOnboardingBusy = false;
+let editingMembershipApplicationId = null;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slugify = s => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70) + '-' + Math.random().toString(36).slice(2,7);
 const money = n => n == null ? 'Not specified' : new Intl.NumberFormat('en-KE',{style:'currency',currency:'KES',maximumFractionDigits:0}).format(n);
@@ -23,8 +25,132 @@ function postTypeLabel(type){return ({event:'Tech event',opportunity:'Opportunit
 async function loadCommunityPosts(){const {data,error}=await supabase.from('community_posts').select('id,post_type,title,summary,body,category,country,county,location,tags,starts_at,ends_at,venue,registration_url,deadline_at,external_url,severity,status,created_at,author_id').eq('status','approved').order('created_at',{ascending:false}).limit(30);if(error){console.error(error);$('#communityGrid').innerHTML='<div class="empty-state"><h3>Community updates are temporarily unavailable.</h3><p>Please try again later.</p></div>';return}communityPosts=data||[];renderCommunityPosts()}
 function renderCommunityPosts(){const q=$('#communitySearch').value.trim().toLowerCase(),type=$('#communityTypeFilter').value;const rows=communityPosts.filter(p=>(!type||p.post_type===type)&&(!q||[p.title,p.summary,p.body,p.category,p.country,p.county,p.location,(p.tags||[]).join(' ')].join(' ').toLowerCase().includes(q)));$('#communityCount').textContent=rows.length+' '+(rows.length===1?'community post':'community posts');if(!rows.length){$('#communityGrid').innerHTML='<div class="empty-state"><h3>No matching community updates yet.</h3><p>Share an event, opportunity, technology issue or article with the Kenya tech community.</p><button class="btn btn-dark" id="emptyCommunitySubmit">Share an update ↗</button></div>';$('#emptyCommunitySubmit')?.addEventListener('click',()=>requireApprovedMember(()=>showModal('communityPostModal')));return}$('#communityGrid').innerHTML=rows.map(p=>'<article class="community-card" data-community="'+p.id+'"><div class="community-card-top"><span class="community-type type-'+esc(p.post_type)+'">'+esc(postTypeLabel(p.post_type))+'</span><span class="community-date">'+esc(new Date(p.starts_at||p.deadline_at||p.created_at).toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'}))+'</span></div><h3>'+esc(p.title)+'</h3><p>'+esc(p.summary)+'</p><div class="community-meta">'+esc([p.location,p.county,p.country].filter(Boolean).join(' · '))+'</div><button class="text-button" type="button" data-open-community="'+p.id+'">View details ↗</button></article>').join('');$$('[data-open-community]').forEach(b=>b.onclick=()=>openCommunityPost(b.dataset.openCommunity));$$('[data-community]').forEach(el=>el.onclick=e=>{if(!e.target.closest('button'))openCommunityPost(el.dataset.community)})}
 function openCommunityPost(id){const p=communityPosts.find(x=>x.id===id);if(!p)return;const registration=safeHttpUrl(p.registration_url),external=safeHttpUrl(p.external_url);let meta='';if(p.starts_at)meta+='<p><b>Starts:</b> '+esc(new Date(p.starts_at).toLocaleString('en-KE'))+'</p>';if(p.ends_at)meta+='<p><b>Ends:</b> '+esc(new Date(p.ends_at).toLocaleString('en-KE'))+'</p>';if(p.deadline_at)meta+='<p><b>Deadline:</b> '+esc(new Date(p.deadline_at).toLocaleString('en-KE'))+'</p>';if(p.venue)meta+='<p><b>Venue:</b> '+esc(p.venue)+'</p>';if(p.severity)meta+='<p><b>Severity:</b> '+esc(p.severity)+'</p>';$('#detailContent').innerHTML='<div class="modal-kicker">'+esc(postTypeLabel(p.post_type))+' · '+esc(p.category||'Technology')+'</div><h2>'+esc(p.title)+'</h2><p>'+esc(p.summary)+'</p><div class="detail-block">'+meta+'<p>'+esc(p.body).replace(/\n/g,'<br>')+'</p><p>'+esc([p.location,p.county,p.country].filter(Boolean).join(' · '))+'</p>'+(registration?'<a class="btn btn-primary" href="'+esc(registration)+'" target="_blank" rel="noopener noreferrer">Register / apply ↗</a>':'')+(external?'<a class="btn btn-dark" href="'+esc(external)+'" target="_blank" rel="noopener noreferrer">Related link ↗</a>':'')+'</div>';showModal('detailModal')}
-function openMembershipApplication(){if(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)){toast('Your Arc Africa membership is active.');return}showModal('membershipModal')}
-async function submitMembershipApplication(e){e.preventDefault();const f=new FormData(e.target),email=String(f.get('email')||'').trim().toLowerCase(),github=String(f.get('github_username')||'').trim().replace(/^@/,''),linkedin=safeHttpUrl(f.get('linkedin_url')),portfolioInput=String(f.get('portfolio_url')||'').trim(),portfolio=portfolioInput?safeHttpUrl(portfolioInput):null;if(!/^[A-Za-z0-9-]{1,39}$/.test(github)){toast('Enter a valid GitHub username.');return}if(!linkedin||!/^https:\/\/(www\.)?linkedin\.com\//i.test(linkedin)){toast('Use your public LinkedIn profile URL.');return}if(portfolioInput&&!portfolio){toast('Portfolio link must be a valid HTTP or HTTPS URL.');return}if(!f.get('commitment')){toast('Please confirm the community commitment before applying.');return}const row={user_id:currentUser?.id||null,applicant_name:f.get('applicant_name').trim(),email,github_username:github,linkedin_url:linkedin,portfolio_url:portfolio,county:f.get('county').trim(),interests:f.get('interests').split(',').map(x=>x.trim()).filter(Boolean),experience:f.get('experience').trim(),motivation:f.get('motivation').trim(),commitment_accepted:true,status:'pending',moderator_note:null,reviewed_by:null,reviewed_at:null};const {error}=await supabase.from('member_applications').insert(row);if(error){toast(error.code==='23505'?'An application for this email or GitHub account already exists. Contact the team if you need to update it.':error.message);return}e.target.reset();hideModal('membershipModal');toast('Application received. We will review your GitHub and LinkedIn and email you with the decision.')}
+async function openMembershipApplication(){
+  if(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)){toast('Your Arc Africa membership is active.');return}
+  const form=$('#membershipForm');
+  form.reset();
+  editingMembershipApplicationId=null;
+  $('#membershipSubmit').textContent='Send application for review ↗';
+  $('#membershipReviewNote').textContent='';
+  $('#membershipReviewNote').classList.add('hidden');
+  prefillMembershipApplication();
+  if(currentUser){
+    await claimAnonymousMembershipApplication();
+    const {data,error}=await supabase.from('member_applications')
+      .select('id,status,applicant_name,email,github_username,linkedin_url,portfolio_url,county,interests,experience,motivation,commitment_accepted,moderator_note')
+      .eq('user_id',currentUser.id).maybeSingle();
+    if(error){
+      toast('We could not check your previous application. Please try again.');
+      return;
+    }
+    if(data?.status==='pending'){toast('Your membership application is awaiting moderator review.');return}
+    if(data?.status==='approved'){toast('Your Arc Africa membership is active.');return}
+    if(data){
+      editingMembershipApplicationId=data.id;
+      $('#membershipForm [name=applicant_name]').value=data.applicant_name||'';
+      $('#membershipForm [name=email]').value=data.email||currentUser.email||'';
+      $('#membershipForm [name=github_username]').value=data.github_username||'';
+      $('#membershipForm [name=linkedin_url]').value=data.linkedin_url||'';
+      $('#membershipForm [name=portfolio_url]').value=data.portfolio_url||'';
+      $('#membershipForm [name=county]').value=data.county||'';
+      $('#membershipForm [name=interests]').value=(data.interests||[]).join(', ');
+      $('#membershipForm [name=experience]').value=data.experience||'';
+      $('#membershipForm [name=motivation]').value=data.motivation||'';
+      $('#membershipForm [name=commitment]').checked=!!data.commitment_accepted;
+      $('#membershipForm [name=legal_consent]').checked=true;
+      $('#membershipSubmit').textContent='Resubmit application for review ↗';
+      if(data.moderator_note){
+        $('#membershipReviewNote').textContent='Moderator feedback: '+data.moderator_note;
+        $('#membershipReviewNote').classList.remove('hidden');
+      }
+      showModal('membershipModal');
+      toast(data.status==='changes_requested'?'Update your application using the moderator feedback.':'You can submit an updated application for another review.');
+      return;
+    }
+  }
+  showModal('membershipModal');
+}
+async function claimAnonymousMembershipApplication(){
+  if(!currentUser?.email||!currentUser.email_confirmed_at)return null;
+  const {data,error}=await supabase.functions.invoke('claim-member-application',{body:{}});
+  if(error){console.warn('Could not link an earlier anonymous application:',error.message);return null;}
+  return data?.application||null;
+}
+function prefillMembershipApplication(){
+  if(!currentUser)return;
+  const nameField=$('#membershipForm [name=applicant_name]');
+  const emailField=$('#membershipForm [name=email]');
+  if(nameField&&!nameField.value)nameField.value=profile?.display_name||currentUser.user_metadata?.display_name||'';
+  if(emailField&&!emailField.value)emailField.value=currentUser.email||'';
+}
+async function handleApplicationOnboarding(){
+  if((!applicationOnboardingPending&&!membershipWelcomePending)||!currentUser||applicationOnboardingBusy)return;
+  applicationOnboardingBusy=true;
+  try{
+    await claimAnonymousMembershipApplication();
+    await loadProfile();
+    if(membershipWelcomePending){
+      toast(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)?'Your Arc Africa membership is active. Welcome to the community.':'Welcome to Arc Africa. Your account is ready.');
+    }else if(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)){
+      toast('Your Arc Africa membership is active. Welcome to the community.');
+    }else if(profile?.membership_status==='pending'){
+      toast('Your membership application is already awaiting moderator review.');
+    }else{
+      const {data,error}=await supabase.from('member_applications').select('id,status').eq('user_id',currentUser.id).maybeSingle();
+      if(error)throw error;
+      if(data?.status==='pending')toast('Your membership application is awaiting moderator review.');
+      else if(data?.status==='approved')toast('Your Arc Africa membership is active. Welcome to the community.');
+      else if(data?.status==='changes_requested'){await openMembershipApplication();}
+      else if(data?.status==='rejected'){await openMembershipApplication();}
+      else{
+        prefillMembershipApplication();
+        hideModal('authModal');
+        openMembershipApplication();
+        toast('Complete your membership application to start contributing.');
+      }
+    }
+  }catch(error){
+    toast('We could not check your application status. You can still use Apply for membership from the page.');
+    console.warn('Membership onboarding check failed:',error.message);
+  }finally{
+    const url=new URL(location.href);
+    url.searchParams.delete('apply');
+    url.searchParams.delete('welcome');
+    history.replaceState({},'',url.pathname+url.search+url.hash);
+    applicationOnboardingPending=false;
+    membershipWelcomePending=false;
+    applicationOnboardingBusy=false;
+  }
+}
+async function submitMembershipApplication(e){
+  e.preventDefault();
+  const f=new FormData(e.target),email=String(f.get('email')||'').trim().toLowerCase(),github=String(f.get('github_username')||'').trim().replace(/^@/,''),linkedin=safeHttpUrl(f.get('linkedin_url')),portfolioInput=String(f.get('portfolio_url')||'').trim(),portfolio=portfolioInput?safeHttpUrl(portfolioInput):null;
+  if(!/^[A-Za-z0-9-]{1,39}$/.test(github)){toast('Enter a valid GitHub username.');return}
+  if(!linkedin||!/^https:\/\/(www\.)?linkedin\.com\//i.test(linkedin)){toast('Use your public LinkedIn profile URL.');return}
+  if(portfolioInput&&!portfolio){toast('Portfolio link must be a valid HTTP or HTTPS URL.');return}
+  if(!f.get('commitment')){toast('Please confirm the community commitment before applying.');return}
+  if(!f.get('legal_consent')){toast('Please agree to the Terms of Use and acknowledge the Privacy Policy.');return}
+  const row={applicant_name:f.get('applicant_name').trim(),email,github_username:github,linkedin_url:linkedin,portfolio_url:portfolio,county:f.get('county').trim(),interests:f.get('interests').split(',').map(x=>x.trim()).filter(Boolean),experience:f.get('experience').trim(),motivation:f.get('motivation').trim(),commitment_accepted:true,status:'pending'};
+  let result;
+  if(editingMembershipApplicationId&&currentUser){
+    result=await supabase.from('member_applications').update({...row,moderator_note:null,reviewed_by:null,reviewed_at:null}).eq('id',editingMembershipApplicationId).eq('user_id',currentUser.id).select('id').maybeSingle();
+  }else{
+    result=await supabase.from('member_applications').insert({...row,user_id:currentUser?.id||null});
+  }
+  if(result.error||(editingMembershipApplicationId&&!result.data)){
+    toast(result.error?.code==='23505'?'An application for this email or GitHub account already exists. Contact the team if you need help.':result.error?.message||'Your application could not be updated. Refresh and try again.');
+    return;
+  }
+  const wasResubmission=!!editingMembershipApplicationId;
+  editingMembershipApplicationId=null;
+  e.target.reset();
+  $('#membershipSubmit').textContent='Send application for review ↗';
+  $('#membershipReviewNote').textContent='';
+  $('#membershipReviewNote').classList.add('hidden');
+  hideModal('membershipModal');
+  if(currentUser){await loadProfile();updateNav()}
+  toast(wasResubmission?'Updated application submitted. The moderation team will review it again.':'Application received. We will review your GitHub and LinkedIn and email you with the decision.');
+}
 function openCommunityComposer(type='event'){requireApprovedMember(()=>{showModal('communityPostModal');$('#communityPostForm [name=post_type]').value=type;$('#communityPostForm [name=post_type]').dispatchEvent(new Event('change'))})}
 async function submitCommunityPost(e){e.preventDefault();if(!await requireApprovedMember())return;const f=new FormData(e.target),type=f.get('post_type'),registrationInput=String(f.get('registration_url')||'').trim(),externalInput=String(f.get('external_url')||'').trim(),registration=safeHttpUrl(registrationInput),external=safeHttpUrl(externalInput);if(registrationInput&&!registration){toast('Registration link must be a valid HTTP or HTTPS URL.');return}if(externalInput&&!external){toast('Related link must be a valid HTTP or HTTPS URL.');return}const starts=f.get('starts_at'),ends=f.get('ends_at'),deadline=f.get('deadline_at');if(type==='event'&&!starts){toast('Add the event start date and time.');return}if(type==='opportunity'&&!deadline){toast('Add the application deadline.');return}const title=f.get('title').trim();const row={author_id:currentUser.id,post_type:type,title,slug:slugify(title)+'-'+Date.now().toString(36),summary:f.get('summary').trim(),body:f.get('body').trim(),category:f.get('category').trim()||'Technology',country:f.get('country').trim()||'Kenya',county:f.get('county').trim()||null,location:f.get('location').trim()||null,tags:f.get('tags').split(',').map(x=>x.trim()).filter(Boolean),starts_at:starts?new Date(starts).toISOString():null,ends_at:ends?new Date(ends).toISOString():null,venue:f.get('venue').trim()||null,registration_url:registration,deadline_at:deadline?new Date(deadline).toISOString():null,external_url:external,severity:type==='issue'?f.get('severity'):null,status:'pending'};const {error}=await supabase.from('community_posts').insert(row);if(error){toast(error.message);return}e.target.reset();$('#communityPostForm [name=country]').value='Kenya';hideModal('communityPostModal');toast('Submitted for moderator review. It will appear publicly after approval.');if(['moderator','admin'].includes(profile?.role))openAccount()}
 async function loadCommunityModerationQueue(){const el=$('#communityModerationQueue');if(!el)return;const {data,error}=await supabase.from('community_posts').select('id,post_type,title,summary,country,county,status,created_at').in('status',['pending','changes_requested']).order('created_at');if(error){el.textContent=error.message;return}el.innerHTML=(data||[]).length?data.map(p=>'<div class="moderation-row"><div><h4>'+esc(p.title)+'</h4><p>'+esc(postTypeLabel(p.post_type))+' · '+esc([p.county,p.country].filter(Boolean).join(', '))+' · '+esc(p.summary)+'</p></div><div class="moderation-actions"><button data-community-review="approved" data-id="'+p.id+'">Approve</button><button class="reject" data-community-review="rejected" data-id="'+p.id+'">Reject</button><button data-community-review="changes_requested" data-id="'+p.id+'">Request changes</button></div></div>').join(''):'<p class="comment">No community posts awaiting review.</p>';$$('[data-community-review]',el).forEach(b=>b.onclick=()=>reviewCommunityPost(b.dataset.id,b.dataset.communityReview))}
@@ -66,9 +192,9 @@ function renderAdminMembers(){const el=$('#adminMembersList');if(!el)return;cons
 async function openAccount(){if(!currentUser)return;await loadProfile();const {data:mine}=await supabase.from('projects').select('id,title,status,moderator_note,created_at').eq('owner_id',currentUser.id).order('created_at',{ascending:false});const {data:minePosts}=await supabase.from('community_posts').select('id,title,post_type,status,moderator_note,created_at').eq('author_id',currentUser.id).order('created_at',{ascending:false});const {data:saved}=await supabase.from('project_favorites').select('project_id,projects(id,title,status)').eq('user_id',currentUser.id);const memberStatus=['moderator','admin'].includes(profile?.role)?'approved':(profile?.membership_status||'not_applied');const canPublish=['moderator','admin'].includes(profile?.role)||memberStatus==='approved';let html=(['moderator','admin'].includes(profile?.role)?'<div class=\"admin-switch-row\"><button class=\"btn btn-primary\" id=\"switchAdminDashboard\">Open admin dashboard ↗</button></div>':'')+'<div class="modal-kicker">YOUR ARC AFRICA</div><h2>Hello, '+esc(profile?.display_name||currentUser.email.split('@')[0])+'.</h2><p>'+esc(currentUser.email)+' · '+(['moderator','admin'].includes(profile?.role)?'Community moderator':'Community member')+'</p><div class="membership-status"><div><b>Membership status</b><span class="status">'+esc(memberStatus.replaceAll('_',' '))+'</span></div><p>'+(canPublish?'You can publish projects and community updates.':memberStatus==='pending'?'Your application is with the moderators.':'Apply to join before publishing projects or community updates.')+'</p>'+(canPublish?'':'<button class="btn btn-primary" id="accountApply">Apply for membership ↗</button>')+'</div><div class="detail-block"><h3>Your project submissions</h3><div class="account-list">'+((mine||[]).length?mine.map(p=>'<div class="account-row"><div><h4>'+esc(p.title)+'</h4><p>'+(p.moderator_note?'Moderator note: '+esc(p.moderator_note):'Submitted '+new Date(p.created_at).toLocaleDateString())+'</p></div><span class="status">'+esc(p.status.replace('_',' '))+'</span></div>').join(''):'<p class="comment">No project submissions yet.</p>')+'</div><button class="btn btn-primary" id="accountSubmit" style="margin-top:15px" '+(canPublish?'':'disabled')+'>Submit a project ↗</button></div><div class="detail-block"><h3>Your community posts</h3>'+((minePosts||[]).map(p=>'<div class="account-row"><div><h4>'+esc(p.title)+'</h4><p>'+esc(postTypeLabel(p.post_type))+' · '+esc(new Date(p.created_at).toLocaleDateString())+'</p></div><span class="status">'+esc(p.status.replace('_',' '))+'</span></div>').join('')||'<p class="comment">No community posts yet.</p>')+'<button class="btn btn-primary" id="accountCommunitySubmit" style="margin-top:15px" '+(canPublish?'':'disabled')+'>Share a community update ↗</button></div><div class="detail-block"><h3>Saved projects</h3>'+((saved||[]).filter(x=>x.projects).map(x=>'<p class="comment">'+esc(x.projects.title)+'</p>').join('')||'<p class="comment">No saved projects yet.</p>')+'</div>'+(['moderator','admin'].includes(profile?.role)?'<div class="detail-block"><h3>Project review queue</h3><div id="moderationQueue">Loading submissions…</div><h3>Community review queue</h3><div id="communityModerationQueue">Loading community posts…</div><h3>Membership applications</h3><div id="membershipQueue">Loading applications…</div></div>':'')+'<div class="detail-block"><button class="btn btn-dark" id="signoutBtn">Sign out</button></div>';$('#accountContent').innerHTML=html;$('#switchAdminDashboard')?.addEventListener('click',openAdminDashboard);showModal('accountModal');$('#accountSubmit').onclick=()=>{hideModal('accountModal');requireApprovedMember(()=>showModal('projectModal'))};$('#accountCommunitySubmit').onclick=()=>{hideModal('accountModal');openCommunityComposer('event')};$('#accountApply')?.addEventListener('click',()=>{hideModal('accountModal');openMembershipApplication()});$('#signoutBtn').onclick=async()=>{await supabase.auth.signOut();hideModal('accountModal');toast('Signed out.')};if(['moderator','admin'].includes(profile?.role)){loadModerationQueue();loadCommunityModerationQueue();loadMembershipQueue()}}
 async function loadModerationQueue(){const {data,error}=await supabase.from('projects').select('id,title,summary,category,country,status,created_at,owner_id').in('status',['pending','changes_requested']).order('created_at');const el=$('#moderationQueue');if(!el)return;if(error){el.textContent=error.message;return}el.innerHTML=(data||[]).length?data.map(p=>'<div class="moderation-row"><div><h4>'+esc(p.title)+'</h4><p>'+esc(p.category)+' · '+esc(p.country)+' · '+esc(p.summary)+'</p></div><div class="moderation-actions"><button data-review="approved" data-id="'+p.id+'">Approve</button><button class="reject" data-review="rejected" data-id="'+p.id+'">Reject</button><button data-review="changes_requested" data-id="'+p.id+'">Request changes</button></div></div>').join(''):'<p class="comment">The review queue is clear.</p>';$$('[data-review]',el).forEach(b=>b.onclick=()=>reviewProject(b.dataset.id,b.dataset.review))}
 async function reviewProject(id,status){const note=status==='approved'?'':prompt('Add a short note for the project owner:')||'';const {error}=await supabase.from('projects').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id);if(error){toast(error.message);return}toast('Project review saved.');await loadModerationQueue();await loadProjects()}
-async function handleAuth(e){e.preventDefault();const f=new FormData(e.target),email=f.get('email').trim(),password=f.get('password');const btn=$('#authSubmit');btn.disabled=true;try{if(authMode==='signup'){if(!$('#legalConsent').checked)throw new Error('Please agree to the Terms of Use and acknowledge the Privacy Policy.');const acceptedAt=new Date().toISOString();const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:f.get('display_name').trim(),legal_version:'2026-11-18',legal_accepted_at:acceptedAt},emailRedirectTo:location.origin}});if(error)throw error;if(data.session){currentUser=data.session.user;await recordLegalAcceptance(currentUser);await loadProfile();updateNav();toast('Account created. Complete your membership application to publish.');hideModal('authModal');openMembershipApplication()}else{toast('Check your email to verify your account, then sign in to apply for membership.');setAuthMode('signin')}}else{const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;await ensureLegalAcceptance(data.user);await loadProfile();updateNav();toast(profile?.membership_status==='approved'?'You are signed in.':'You are signed in. Apply for membership before publishing.');hideModal('authModal')}}catch(err){toast(err.message||'Authentication failed.')}finally{btn.disabled=false}}
+async function handleAuth(e){e.preventDefault();const f=new FormData(e.target),email=f.get('email').trim(),password=f.get('password');const btn=$('#authSubmit');btn.disabled=true;try{if(authMode==='signup'){if(!$('#legalConsent').checked)throw new Error('Please agree to the Terms of Use and acknowledge the Privacy Policy.');const acceptedAt=new Date().toISOString();const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:f.get('display_name').trim(),legal_version:'2026-11-18',legal_accepted_at:acceptedAt},emailRedirectTo:location.origin+'/?apply=1'}});if(error)throw error;if(data.session){currentUser=data.session.user;await recordLegalAcceptance(currentUser);await loadProfile();updateNav();prefillMembershipApplication();toast('Account created. Complete your membership application to publish.');hideModal('authModal');openMembershipApplication()}else{toast('Check your email to verify your account, then sign in to apply for membership.');setAuthMode('signin')}}else{const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;await ensureLegalAcceptance(data.user);await loadProfile();updateNav();toast(profile?.membership_status==='approved'?'You are signed in.':'You are signed in. Apply for membership before publishing.');hideModal('authModal');await handleApplicationOnboarding()}}catch(err){toast(err.message||'Authentication failed.')}finally{btn.disabled=false}}
 async function resetPassword(){const email=$('#authForm [name=email]').value.trim();if(!email){toast('Enter your email address first.');return}const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:location.origin});toast(error?error.message:'Password reset link sent. Check your inbox.')}
 function wire(){ $('#year').textContent=new Date().getFullYear();$('#signinTop').onclick=()=>openAuth('signin');$('#joinTop').onclick=()=>openAuth('signup');$('#applyCommunityBtn').onclick=()=>openMembershipApplication();$('#heroSubmit').onclick=()=>requireApprovedMember(()=>showModal('projectModal'));$('#submitProjectBtn').onclick=()=>requireApprovedMember(()=>showModal('projectModal'));$('#submitCommunityBtn').onclick=()=>openCommunityComposer('event');$('#communityPostForm').onsubmit=submitCommunityPost;$('#membershipForm').onsubmit=submitMembershipApplication;$('#authForm').onsubmit=handleAuth;$('#projectForm').onsubmit=submitProject;$('#forgotPassword').onclick=resetPassword;$('#accountButton').onclick=openAccount;$('#searchInput').oninput=renderProjects;$('#categoryFilter').onchange=renderProjects;$('#stageFilter').onchange=renderProjects;$('#countryFilter').onchange=renderProjects;$('#communitySearch').oninput=renderCommunityPosts;$('#communityTypeFilter').onchange=renderCommunityPosts;$('#communityTypeFilter').value='';$$('[data-community-filter]').forEach(a=>a.onclick=()=>{const filter=a.dataset.communityFilter;$('#communityTypeFilter').value=filter||'';renderCommunityPosts()});$('#communityPostForm [name=post_type]').onchange=e=>{const t=e.target.value;$('#eventFields').classList.toggle('hidden',t!=='event');$('#opportunityFields').classList.toggle('hidden',t!=='opportunity');$('#issueFields').classList.toggle('hidden',t!=='issue')};$$('[data-auth-tab]').forEach(b=>b.onclick=()=>setAuthMode(b.dataset.authTab));$$('[data-close]').forEach(b=>b.onclick=()=>{$$('.modal-backdrop').forEach(m=>m.classList.add('hidden'));document.body.style.overflow=''});$$('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)hideModal(m.id)}));$('#googleButton').onclick=()=>toast('Google sign-in will be enabled after the Google OAuth client is configured in Supabase.');$('#mobileMenu').onclick=()=>toast('Use the page links by scrolling — mobile navigation is simplified.')}
 wire();
-supabase.auth.onAuthStateChange(async(_event,session)=>{currentUser=session?.user||null;await loadProfile();updateNav()});
-const {data:{session}}=await supabase.auth.getSession();currentUser=session?.user||null;await loadProfile();updateNav();await loadProjects();await loadCommunityPosts();
+supabase.auth.onAuthStateChange(async(_event,session)=>{currentUser=session?.user||null;await loadProfile();updateNav();await handleApplicationOnboarding()});
+const {data:{session}}=await supabase.auth.getSession();currentUser=session?.user||null;await loadProfile();updateNav();await handleApplicationOnboarding();await loadProjects();await loadCommunityPosts();

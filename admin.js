@@ -149,54 +149,105 @@ async function openUserDetail(id) {
 }
 
 async function loadApplications() {
-  const {data,error} = await db.from('member_applications').select('*').order('created_at',{ascending:false}).limit(300);
-  applicationRows = error ? [] : data || [];
+  const [applicationsResult, deliveryResult] = await Promise.all([
+    db.from('member_applications').select('*').order('created_at',{ascending:false}).limit(300),
+    db.from('member_application_email_delivery').select('application_id,decision,status,attempt_count,last_error,attempted_at,sent_at,updated_at').order('updated_at',{ascending:false}).limit(500)
+  ]);
+  if(deliveryResult.error) console.warn('Membership email delivery status unavailable:',deliveryResult.error.message);
+  const deliveryByApplication = new Map();
+  for(const item of deliveryResult.data||[]) if(!deliveryByApplication.has(item.application_id)) deliveryByApplication.set(item.application_id,item);
+  applicationRows = applicationsResult.error ? [] : (applicationsResult.data||[]).map(item=>({...item,emailDelivery:deliveryByApplication.get(item.id)||null}));
   renderApplications();
-  if(error) $('#applicationsRows').innerHTML = `<p class="error-text">${esc(error.message)}</p>`;
+  if(applicationsResult.error) $('#applicationsRows').innerHTML = '<p class="error-text">'+esc(applicationsResult.error.message)+'</p>';
 }
 function renderApplications() {
+  const pendingCount = applicationRows.filter(item=>['pending','changes_requested'].includes(item.status)).length;
+  const pendingBadge = $('#applicationPendingCount');
+  if(pendingBadge) pendingBadge.textContent = pendingCount.toLocaleString('en-KE') + ' awaiting review';
   const query = ($('#applicationSearch')?.value||'').toLowerCase().trim(), filter = $('#applicationFilter')?.value||'open';
   const rows = applicationRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.applicant_name,item.email,item.county,item.github_username,item.motivation].join(' ').toLowerCase().includes(query));
-  $('#applicationsRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.applicant_name)} · ${esc(item.county)}</h3><p>${esc(item.email)} · GitHub: ${esc(item.github_username)} · <span class="status">${esc(item.status)}</span></p><p>${esc(item.motivation)}</p><p>${externalLink(item.linkedin_url,'LinkedIn')} ${externalLink(item.portfolio_url,'Portfolio')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))}</small></div><div class="actions">${item.status!=='approved'?`<button data-app="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-app="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-app="${esc(item.id)}" data-status="changes_requested">Request info</button></div></div>`).join('') || '<p class="empty-state">No applications match this view.</p>';
+  $('#applicationsRows').innerHTML = rows.map(item => {
+    const delivery=item.emailDelivery;
+    const deliveryLabel=!delivery?'Email status not recorded':delivery.status==='sent'?'Email sent':delivery.status==='failed'?'Email failed':'Email pending';
+    const retryButton=['failed','pending'].includes(delivery?.status)?'<button data-retry-email="'+esc(item.id)+'">Retry email</button>':'';
+    const decisionButtons=(item.status!=='approved'?'<button data-app="'+esc(item.id)+'" data-status="approved">Approve</button>':'')+
+      (item.status!=='rejected'?'<button class="reject" data-app="'+esc(item.id)+'" data-status="rejected">Reject</button>':'')+
+      '<button data-app="'+esc(item.id)+'" data-status="changes_requested">Request info</button>';
+    return '<div class="row"><div><h3>'+esc(item.applicant_name)+' · '+esc(item.county)+'</h3><p>'+esc(item.email)+' · GitHub: '+esc(item.github_username)+' · <span class="status">'+esc(item.status)+'</span></p><p>'+esc(item.motivation)+'</p><p>'+externalLink(item.linkedin_url,'LinkedIn')+' '+externalLink(item.portfolio_url,'Portfolio')+'</p><details class="admin-submission-details"><summary>View complete application</summary><div class="detail-grid"><div class="detail-field"><strong>Technology interests</strong><span>'+esc(Array.isArray(item.interests)?item.interests.join(', '):item.interests)+'</span></div><div class="detail-field"><strong>Commitment</strong><span>'+(item.commitment_accepted?'Accepted':'Not confirmed')+'</span></div><div class="detail-field detail-wide"><strong>Experience and background</strong><span>'+esc(item.experience||'Not provided')+'</span></div><div class="detail-field detail-wide"><strong>Motivation</strong><span>'+esc(item.motivation||'Not provided')+'</span></div><div class="detail-field"><strong>LinkedIn</strong><span>'+externalLink(item.linkedin_url,'Open profile')+'</span></div><div class="detail-field"><strong>Portfolio</strong><span>'+externalLink(item.portfolio_url,'Open portfolio')+'</span></div><div class="detail-field"><strong>GitHub</strong><span>'+externalLink(item.github_username?'https://github.com/'+encodeURIComponent(item.github_username):'','Open GitHub')+'</span></div><div class="detail-field"><strong>Submitted</strong><span>'+esc(fmt(item.created_at))+'</span></div></div></details><small class="muted">Submitted '+esc(fmt(item.created_at))+'</small><small class="muted email-delivery-status">Notification: '+esc(deliveryLabel)+(delivery?.attempt_count?' · Attempts: '+Number(delivery.attempt_count):'')+(delivery?.last_error?' · '+esc(delivery.last_error):'')+'</small></div><div class="actions">'+decisionButtons+retryButton+'</div></div>';
+  }).join('') || '<p class="empty-state">No applications match this view.</p>';
+  $$('[data-retry-email]').forEach(button=>button.addEventListener('click',()=>retryApplicationNotification(button.dataset.retryEmail)));
 }
 async function reviewApplication(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note to applicant:') || '';
   const {data,error} = await db.functions.invoke('review-member-application',{body:{application_id:id,decision:status,note}});
   if(error||data?.error){toast(data?.error||error.message);return;}
-  toast(data?.email_sent===false?'Decision saved, but the notification email was not sent.':`Application ${status.replaceAll('_',' ')}.`);
+  toast(data?.email_sent===false?'Decision saved. '+(data?.email_error||'The notification email was not sent.'):`Application ${status.replaceAll('_',' ')}.`);
+  await loadConsole();
+}
+
+async function retryApplicationNotification(id) {
+  const {data,error}=await db.functions.invoke('review-member-application',{body:{application_id:id,action:'retry_notification'}});
+  if(error||data?.error){toast('Email retry failed: '+(data?.error||error.message));return;}
+  toast(data?.email_sent?'Applicant notification sent successfully.':(data?.email_error||'The decision remains saved, but email delivery is still failing.'));
   await loadConsole();
 }
 
 async function loadProjects() {
-  const {data,error} = await db.from('projects').select('id,owner_id,title,summary,description,category,country,status,created_at,repository_url,demo_url,website_url,stage,featured').order('created_at',{ascending:false}).limit(300);
-  projectRows = error ? [] : data || []; renderProjects();
-  if(error) $('#projectsRows').innerHTML = `<p class="error-text">${esc(error.message)}</p>`;
+  const [projectsResult,milestonesResult,updatesResult]=await Promise.all([
+    db.from('projects').select('id,owner_id,title,summary,description,category,country,location,status,created_at,repository_url,demo_url,website_url,cover_image_url,stage,featured,budget,funding_goal,tags,moderator_note,reviewed_at').order('created_at',{ascending:false}).limit(300),
+    db.from('project_milestones').select('id,project_id,title,description,target_date,due_date,completed,completed_at,sort_order').order('sort_order',{ascending:true}).limit(1000),
+    db.from('project_updates').select('id,project_id,title,body,status,created_at').order('created_at',{ascending:false}).limit(1000)
+  ]);
+  if(milestonesResult.error)console.warn('Project milestones unavailable:',milestonesResult.error.message);
+  if(updatesResult.error)console.warn('Project updates unavailable:',updatesResult.error.message);
+  const milestones=new Map(),updates=new Map();
+  for(const item of milestonesResult.data||[]){if(!milestones.has(item.project_id))milestones.set(item.project_id,[]);milestones.get(item.project_id).push(item);}
+  for(const item of updatesResult.data||[]){if(!updates.has(item.project_id))updates.set(item.project_id,[]);updates.get(item.project_id).push(item);}
+  projectRows=projectsResult.error?[]:(projectsResult.data||[]).map(item=>({...item,milestones:milestones.get(item.id)||[],updates:updates.get(item.id)||[]}));
+  renderProjects();
+  if(projectsResult.error)$('#projectsRows').innerHTML='<p class="error-text">'+esc(projectsResult.error.message)+'</p>';
 }
 function renderProjects() {
-  const query = ($('#projectSearch')?.value||'').toLowerCase().trim(), filter = $('#projectFilter')?.value||'open';
-  const rows = projectRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.title,item.category,item.country,item.summary,item.description].join(' ').toLowerCase().includes(query));
-  $('#projectsRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.title)} <span class="status">${esc(item.status)}</span></h3><p>${esc(item.category)} · ${esc(item.country)} · ${esc(item.stage||'idea')}${item.featured?' · Featured':''}</p><p>${esc(item.summary)}</p><p>${externalLink(item.repository_url,'Repository')} ${externalLink(item.demo_url,'Demo')} ${externalLink(item.website_url,'Website')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))} · Owner ${esc(profileFor(item.owner_id).display_name||item.owner_id||'Unknown')}</small></div><div class="actions">${item.status!=='approved'?`<button data-project="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-project="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-project="${esc(item.id)}" data-status="changes_requested">Request changes</button></div></div>`).join('') || '<p class="empty-state">No project submissions match this view.</p>';
+  const query=($('#projectSearch')?.value||'').toLowerCase().trim(),filter=$('#projectFilter')?.value||'open';
+  const rows=projectRows.filter(item=>(filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter))&&[item.title,item.category,item.country,item.summary,item.description].join(' ').toLowerCase().includes(query));
+  $('#projectsRows').innerHTML=rows.map(item=>{
+    const milestones=item.milestones.map(m=>'<li><b>'+esc(m.title)+'</b> · '+esc(m.completed?'Completed':'Planned')+(m.due_date||m.target_date?' · Due '+esc(m.due_date||m.target_date):'')+(m.description?'<p>'+esc(m.description)+'</p>':'')+'</li>').join('')||'<li>No milestones submitted.</li>';
+    const updates=item.updates.map(u=>'<li><b>'+esc(u.title)+'</b> · '+esc(u.status)+' · '+esc(fmt(u.created_at))+'<p>'+esc(u.body)+'</p></li>').join('')||'<li>No project updates submitted.</li>';
+    const cover=safeUrl(item.cover_image_url)?'<img class="admin-project-cover" src="'+esc(safeUrl(item.cover_image_url))+'" alt="Project cover image" loading="lazy">':'';
+    const details='<details class="admin-submission-details"><summary>View full project, milestones and updates</summary><div class="detail-grid">'+
+      '<div class="detail-field detail-wide"><strong>Full description</strong><span>'+esc(item.description||item.summary||'No description provided')+'</span></div>'+
+      '<div class="detail-field"><strong>Stage</strong><span>'+esc(item.stage||'idea')+'</span></div>'+
+      '<div class="detail-field"><strong>Location</strong><span>'+esc([item.location,item.country].filter(Boolean).join(', '))+'</span></div>'+
+      '<div class="detail-field"><strong>Tags</strong><span>'+esc(Array.isArray(item.tags)?item.tags.join(', '):item.tags)+'</span></div>'+
+      '<div class="detail-field"><strong>Budget</strong><span>'+esc(item.budget??'Not provided')+'</span></div>'+
+      '<div class="detail-field"><strong>Funding goal</strong><span>'+esc(item.funding_goal??'Not provided')+'</span></div>'+
+      '<div class="detail-field detail-wide"><strong>Milestones ('+item.milestones.length+')</strong><span><ul>'+milestones+'</ul></span></div>'+
+      '<div class="detail-field detail-wide"><strong>Updates ('+item.updates.length+')</strong><span><ul>'+updates+'</ul></span></div>'+
+      (item.moderator_note?'<div class="detail-field detail-wide"><strong>Moderator note</strong><span>'+esc(item.moderator_note)+'</span></div>':'')+
+      '</div></details>';
+    return '<div class="row"><div><h3>'+esc(item.title)+' <span class="status">'+esc(item.status)+'</span></h3><p>'+esc(item.category)+' · '+esc(item.country)+' · '+esc(item.stage||'idea')+(item.featured?' · Featured':'')+'</p>'+cover+'<p>'+esc(item.summary)+'</p><p>'+externalLink(item.repository_url,'Repository')+' '+externalLink(item.demo_url,'Demo')+' '+externalLink(item.website_url,'Website')+'</p>'+details+'<small class="muted">Submitted '+esc(fmt(item.created_at))+' · Owner '+esc(profileFor(item.owner_id).display_name||item.owner_id||'Unknown')+'</small></div><div class="actions">'+(item.status!=='approved'?'<button data-project="'+esc(item.id)+'" data-status="approved">Approve</button>':'')+(item.status!=='rejected'?'<button class="reject" data-project="'+esc(item.id)+'" data-status="rejected">Reject</button>':'')+'<button data-project="'+esc(item.id)+'" data-status="changes_requested">Request changes</button></div></div>';
+  }).join('')||'<p class="empty-state">No project submissions match this view.</p>';
 }
 async function reviewProject(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note for project owner:') || '';
-  const {error} = await db.from('projects').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast(error.message);return;} toast(`Project ${status.replaceAll('_',' ')}.`); await loadProjects(); renderOverview(new Date().toISOString());
+  const {data,error} = await db.from('projects').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id).select('id').maybeSingle();
+  if(error||!data){toast(error?.message||'The project was not updated. Refresh the queue and try again.');return;} toast(`Project ${status.replaceAll('_',' ')}.`); await loadProjects(); renderOverview(new Date().toISOString());
 }
 
 async function loadCommunity() {
-  const {data,error} = await db.from('community_posts').select('id,author_id,title,summary,post_type,country,county,status,created_at,external_url,registration_url,venue,starts_at,deadline_at').order('created_at',{ascending:false}).limit(300);
+  const {data,error} = await db.from('community_posts').select('id,author_id,title,body,summary,post_type,category,country,county,tags,status,created_at,external_url,registration_url,venue,starts_at,ends_at,deadline_at,severity,moderator_note').order('created_at',{ascending:false}).limit(300);
   communityRows = error ? [] : data || []; renderCommunity();
   if(error) $('#communityRows').innerHTML = `<p class="error-text">${esc(error.message)}</p>`;
 }
 function renderCommunity() {
   const query = ($('#communitySearch')?.value||'').toLowerCase().trim(), filter = $('#communityFilter')?.value||'open';
-  const rows = communityRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.title,item.summary,item.post_type,item.country,item.county,item.venue].join(' ').toLowerCase().includes(query));
-  $('#communityRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.title)} <span class="status">${esc(item.post_type)}</span> <span class="status">${esc(item.status)}</span></h3><p>${esc(item.country)}${item.county?' · '+esc(item.county):''}${item.venue?' · '+esc(item.venue):''}</p><p>${esc(item.summary)}</p><p>${externalLink(item.external_url,'External link')} ${externalLink(item.registration_url,'Registration')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))} · Author ${esc(profileFor(item.author_id).display_name||'Member')}</small></div><div class="actions">${item.status!=='approved'?`<button data-post="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-post="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-post="${esc(item.id)}" data-status="changes_requested">Request changes</button></div></div>`).join('') || '<p class="empty-state">No community submissions match this view.</p>';
+  const rows = communityRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.title,item.summary,item.body,item.post_type,item.category,item.country,item.county,item.venue].join(' ').toLowerCase().includes(query));
+  $('#communityRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.title)} <span class="status">${esc(item.post_type)}</span> <span class="status">${esc(item.status)}</span></h3><p>${esc(item.country)}${item.county?' · '+esc(item.county):''}${item.venue?' · '+esc(item.venue):''}</p><p>${esc(item.summary)}</p><details class="admin-submission-details"><summary>Read complete submission</summary><div class="detail-grid"><div class="detail-field detail-wide"><strong>Full content</strong><span>${esc(item.body||item.summary||'No content provided')}</span></div><div class="detail-field"><strong>Tags</strong><span>${esc(Array.isArray(item.tags)?item.tags.join(', '):item.tags)}</span></div><div class="detail-field"><strong>Category</strong><span>${esc(item.category||'general')}</span></div><div class="detail-field"><strong>Event dates</strong><span>${esc(fmt(item.starts_at))} · ${esc(fmt(item.ends_at))}</span></div><div class="detail-field"><strong>Deadline</strong><span>${esc(fmt(item.deadline_at))}</span></div><div class="detail-field"><strong>Severity</strong><span>${esc(item.severity||'Not specified')}</span></div></div></details><p>${externalLink(item.external_url,'External link')} ${externalLink(item.registration_url,'Registration')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))} · Author ${esc(profileFor(item.author_id).display_name||'Member')}</small></div><div class="actions">${item.status!=='approved'?`<button data-post="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-post="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-post="${esc(item.id)}" data-status="changes_requested">Request changes</button></div></div>`).join('') || '<p class="empty-state">No community submissions match this view.</p>';
 }
 async function reviewPost(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note for contributor:') || '';
-  const {error} = await db.from('community_posts').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast(error.message);return;} toast(`Community post ${status.replaceAll('_',' ')}.`); await loadCommunity(); renderOverview(new Date().toISOString());
+  const {data,error} = await db.from('community_posts').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id).select('id').maybeSingle();
+  if(error||!data){toast(error?.message||'The community post was not updated. Refresh the queue and try again.');return;} toast(`Community post ${status.replaceAll('_',' ')}.`); await loadCommunity(); renderOverview(new Date().toISOString());
 }
 
 async function loadMessages() {
@@ -210,8 +261,8 @@ function renderMessages() {
   $('#messagesRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.subject)} <span class="status ${item.status==='unread'?'status-warn':''}">${esc(item.status)}</span></h3><p>${esc(item.sender_name)} · ${esc(item.sender_email)} · ${esc(fmt(item.created_at))}</p><p class="message-body">${esc(item.message)}</p></div><div class="actions"><button data-msg="${esc(item.id)}" data-status="read">Mark read</button><button data-msg="${esc(item.id)}" data-status="replied">Mark replied</button><button class="reject" data-msg="${esc(item.id)}" data-status="archived">Archive</button></div></div>`).join('') || '<p class="empty-state">No messages match this view.</p>';
 }
 async function updateMessage(id,status) {
-  const {error} = await db.from('admin_inbox').update({status}).eq('id',id);
-  if(error){toast(error.message);return;} toast(`Message marked ${status}.`); await loadMessages(); renderOverview(new Date().toISOString());
+  const {data,error} = await db.from('admin_inbox').update({status}).eq('id',id).select('id').maybeSingle();
+  if(error||!data){toast(error?.message||'The message status was not updated. Refresh the inbox and try again.');return;} toast(`Message marked ${status}.`); await loadMessages(); renderOverview(new Date().toISOString());
 }
 
 async function loadAudit() {
@@ -256,7 +307,27 @@ async function loadHealth() {
 }
 function watchActivity() {
   if(activityChannel) return;
-  activityChannel=db.channel('arc-africa-admin-activity').on('postgres_changes',{event:'*',schema:'public',table:'admin_audit_events'},()=>{loadActivity();loadAudit();}).subscribe();
+  activityChannel=db.channel('arc-africa-admin-activity')
+    .on('postgres_changes',{event:'*',schema:'public',table:'admin_audit_events'},payload=>{
+      loadActivity();
+      loadAudit();
+      const target=payload?.new?.target_type, action=payload?.new?.action;
+      if(target==='member_applications') {
+        loadApplications();
+        if(action==='member_activity:member_applications:insert' && payload.new.actor_id!==currentUser?.id) {
+          toast('New membership application received. The review queue has been refreshed.');
+        }
+      }
+      if(target==='projects') {
+        loadProjects();
+        if(action==='member_activity:projects:insert' && payload.new.actor_id!==currentUser?.id) toast('A new project has been submitted for review.');
+      }
+      if(target==='community_posts') {
+        loadCommunity();
+        if(action==='member_activity:community_posts:insert' && payload.new.actor_id!==currentUser?.id) toast('A new community post has been submitted for review.');
+      }
+    })
+    .subscribe();
 }
 
 function exportCsv(filename, rows) {
