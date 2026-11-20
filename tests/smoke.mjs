@@ -39,6 +39,13 @@ assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&h
 assert.ok(html.includes('/assets/arc-africa/community-admin.jpg')&&html.includes('Portrait of Jark Pruden'),'public community administrator profile must use the supplied portrait with descriptive alt text');
 assert.ok(js.includes("from('project_updates').select('id,project_id,title,body,status,created_at,moderator_note')")&&js.includes('Share project progress')&&js.includes('submitProjectProgressUpdate'),'project owners must be able to review their progress history and publish updates from their account');
 assert.ok(js.includes("status:'published'")&&js.includes('Project progress shared with the community.'),'project progress submissions must be published for community visibility');
+assert.ok(html.includes('name="cover_image"')&&html.includes('projectImagePreview'),'project submission must support representative project photographs');
+assert.ok(js.includes('uploadArcImage')&&js.includes('openProjectEditor'),'members must be able to upload project media and edit their own projects');
+assert.ok(js.includes('saveMemberProfile')&&js.includes('member-avatars'),'members must be able to upload a profile photograph and edit their profile');
+assert.ok(js.includes('workspace-tabs')&&js.includes('workspace-settings')&&js.includes('changeMemberPassword'),'top-right account must open a full member workspace and account settings');
+assert.ok(js.includes("from('projects').update(row)")&&js.includes('Project updated and sent for review.'),'project edits must persist and route previously approved content back for review');
+assert.ok(js.includes("from('project_updates').update({title:title.trim(),body:body.trim()})"),'members must be able to edit their own progress updates');
+
 assert.ok(admin.includes("if(target==='project_updates')")&&admin.includes('loadProjects();'),'admin project review details must refresh when a project owner posts progress');
 assert.ok(read('../supabase/migrations/202611210001_project_owner_progress_updates.sql').includes('Project owners read own updates')&&read('../supabase/migrations/202611210001_project_owner_progress_updates.sql').includes("p.status in ('published', 'approved')"),'owners must be able to read their own project progress updates');
 
