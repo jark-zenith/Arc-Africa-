@@ -92,8 +92,8 @@ async function handleApplicationOnboarding(){
       if(error)throw error;
       if(data?.status==='pending')toast('Your membership application is awaiting moderator review.');
       else if(data?.status==='approved')toast('Your Arc Africa membership is active. Welcome to the community.');
-      else if(data?.status==='changes_requested')toast('Your application needs more information. Please contact the community team for the next step.');
-      else if(data?.status==='rejected')toast('Your previous application was not approved. Contact the community team if you need clarification.');
+      else if(data?.status==='changes_requested'){await openMembershipApplication();}
+      else if(data?.status==='rejected'){await openMembershipApplication();}
       else{
         prefillMembershipApplication();
         hideModal('authModal');
