@@ -154,7 +154,8 @@ async function loadApplications() {
     db.from('member_application_email_delivery').select('application_id,decision,status,attempt_count,last_error,attempted_at,sent_at,updated_at').order('updated_at',{ascending:false}).limit(500)
   ]);
   if(deliveryResult.error) console.warn('Membership email delivery status unavailable:',deliveryResult.error.message);
-  const deliveryByApplication = new Map((deliveryResult.data||[]).map(item=>[item.application_id,item]));
+  const deliveryByApplication = new Map();
+  for(const item of deliveryResult.data||[]) if(!deliveryByApplication.has(item.application_id)) deliveryByApplication.set(item.application_id,item);
   applicationRows = applicationsResult.error ? [] : (applicationsResult.data||[]).map(item=>({...item,emailDelivery:deliveryByApplication.get(item.id)||null}));
   renderApplications();
   if(applicationsResult.error) $('#applicationsRows').innerHTML = '<p class="error-text">'+esc(applicationsResult.error.message)+'</p>';
