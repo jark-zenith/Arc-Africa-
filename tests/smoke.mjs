@@ -14,6 +14,7 @@ assert.ok(js.includes("['moderator','admin'].includes(profile?.role)"),'admin ro
 assert.ok(review.indexOf('from("member_applications").update') < review.indexOf('fetch("https://api.resend.com/emails"'),'membership decisions must persist before email delivery');
 assert.ok(review.includes('email_sent: !emailError'),'approval response must report notification delivery accurately');
 assert.ok(review.includes('retry_notification')&&review.includes('member_application_email_delivery'),'membership notification failures must be retryable and recorded');
+assert.ok(review.includes('type: "magiclink"')&&review.includes('type: "invite"'),'approval must link existing Auth users and invite applicants who do not yet have accounts');
 assert.ok(emailDelivery.includes('enable row level security')&&emailDelivery.includes('Moderators view membership email delivery'),'email delivery metadata must remain private to moderators');
 assert.ok(emailDelivery.includes('user_id = (select auth.uid())')&&emailDelivery.includes('reviewed_by is null')&&emailDelivery.includes('reviewed_at is null'),'public applications must not spoof applicant identity or moderation metadata');
 assert.ok(emailDelivery.includes('revoke all on table public.member_applications from anon, authenticated')&&emailDelivery.includes('grant insert ('),'membership submission must use restricted column-level grants');
