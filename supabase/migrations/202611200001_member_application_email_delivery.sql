@@ -43,6 +43,7 @@ grant update (
   motivation,
   commitment_accepted,
   status,
+  moderator_note,
   reviewed_by,
   reviewed_at
 ) on public.member_applications to authenticated;
@@ -82,6 +83,7 @@ using (
 with check (
   user_id = (select auth.uid())
   and status = 'pending'
+  and moderator_note is null
   and reviewed_by is null
   and reviewed_at is null
 );
