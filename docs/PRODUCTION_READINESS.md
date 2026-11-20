@@ -4,14 +4,14 @@
 **Production site:** https://arc-africa.onrender.com  
 **Repository:** https://github.com/jark-zenith/Arc-Africa-  
 **Production branch:** `main`  
-**Audit status:** Read-only production inspection; implementation changes are isolated in PR #16.
+**Current status:** PR #16 merged; production migration and Edge Functions deployed; Render static-site deployment is live. Browser-level end-to-end and email-provider verification remain outstanding.
 
 ## 1. Production architecture
 
 - **Frontend:** Render static site `arc-africa`, service `srv-dbtcu06k1f9s73c6snn0`, publishing repository root from `main`.
-- **Latest inspected production deploy:** commit `eabd0b2620e656981b8bed0c7ba7b638131036cd`, deployed 18 November 2026; Render reported the build and deploy as successful.
+- **Latest production deploy:** commit `3c818b742e848a240e12703f77da3202c4a1a724`, deployed 20 November 2026; Render reported the static-site deployment as `live`.
 - **Backend:** Supabase project `Arc Africa`, project ref `fgtkttnhhhvgonrwhakj`, region Singapore (`ap-southeast-1`), status `ACTIVE_HEALTHY`.
-- **Active Edge Functions:** `admin-console` version 3 and `review-member-application` version 2 at the time of inspection.
+- **Active Edge Functions:** `admin-console` v4, `review-member-application` v3 and `claim-member-application` v1; all deployed with JWT verification enabled.
 - **Authentication:** Supabase Auth with email/password; Google OAuth remains intentionally disabled until provider credentials are configured.
 - **Storage/database:** Supabase Postgres, RLS-protected public schema and private project-asset storage.
 
@@ -103,7 +103,7 @@ The owner administrator account and a separate member account both exist. Preser
 8. `supabase/migrations/202611180003_admin_audit_read_privilege_hardening.sql`
 9. `supabase/migrations/202611180004_secure_service_role_session_overview.sql`
 10. `supabase/migrations/202611180005_audit_member_auth_session_events.sql`
-11. Proposed in PR #16: `supabase/migrations/202611200001_member_application_email_delivery.sql`
+11. `supabase/migrations/202611200001_member_application_email_delivery.sql` (applied to production as ledger version `20261120145108`)
 
 ### Automated tests and CI
 
@@ -115,7 +115,7 @@ The owner administrator account and a separate member account both exist. Preser
 | `tests/discovery.mjs` | Project discovery/filter checks |
 | `.github/workflows/validate.yml` | Runs Node tests, browser-JavaScript syntax checks and Deno Edge Function type-checks on PRs and pushes to `main` |
 
-CI also runs Node syntax checks for browser JavaScript and Deno type-checks for both Edge Functions. These checks are not yet full browser end-to-end tests of signup, verification, application submission, moderation, email delivery and member access.
+CI runs Node syntax checks for browser JavaScript and Deno type-checks for all three Edge Functions. These checks are not full browser end-to-end tests of signup, verification, application submission, moderation, email delivery and member access.
 
 ## 5. Production database and security findings
 
@@ -125,10 +125,10 @@ The live `member_applications` table has RLS enabled, but its deployed policies 
 
 - `Anyone can submit membership application` permits anon/authenticated inserts when `commitment_accepted = true` and `status = 'pending'`.
 - That live insert policy does **not** bind `user_id` to `auth.uid()`, and does not require `reviewed_by` and `reviewed_at` to be null.
-- Live column privileges granted anon/authenticated INSERT/UPDATE/SELECT across all application columns, including review metadata. A table-level `REVOKE ALL` alone would not clear these legacy column grants; the proposed migration explicitly revokes all existing column-level privileges before applying the least-privilege grants. RLS still limits row access and status values, but the broad grants and incomplete insert check permit identity/metadata spoofing within the insert policy.
-- The live moderator policy is a broad `FOR ALL` policy. The proposed migration replaces it with narrower read access and reserves review writes for the service-role Edge Function.
+- Before rollout, live column privileges granted anon/authenticated INSERT/UPDATE/SELECT across all application columns, including review metadata. The applied migration explicitly revoked the legacy column grants before applying least-privilege permissions.
+- The previous moderator policy was a broad `FOR ALL` policy. The applied migration replaced it with moderator read access and reserves review writes for the service-role Edge Function.
 
-PR #16 adds a migration that:
+The applied migration:
 - binds authenticated submissions to their own user ID while retaining anonymous submissions;
 - requires new submissions to be pending and contain no reviewer metadata;
 - revokes broad anon/authenticated table grants;
@@ -136,20 +136,20 @@ PR #16 adds a migration that:
 - restricts application reads to authenticated applicants and moderators;
 - adds foreign-key indexes for application ownership/reviewer fields.
 
-**Do not apply this migration to production until the full live migration ledger is reconciled with the repository.**
+**Rollout note:** the new migration was applied as a forward-only change after checking the live table definitions, policies and grants. The historical repository migration filenames still do not map one-to-one to all prior production ledger entries; do not replay old migrations or attempt to baseline them blindly.
 
 ### Email delivery and approval flow
 
-The deployed version 2 review function has two important failure modes. The current application-submission flow also only displays a browser confirmation; it does not send a separate application-received email to the applicant.
+Before rollout, the deployed version 2 review function had two important failure modes. The current application-submission flow still only displays a browser confirmation; it does not send a separate application-received email to the applicant.
 
 1. If Resend is not configured, an anonymous application can be marked approved without creating/linking an Auth user.
 2. Once a decision is final, a failed notification cannot be retried through the current function because it only accepts pending/changes-requested applications.
 
-PR #16 adds a private `member_application_email_delivery` outbox, separates decision state from notification state, prepares an Auth link before approving, and adds an admin retry control. The outbox is readable only by moderators; clients cannot write delivery records. The matching migration must be applied before deploying the updated Edge Function.
+The merged rollout adds a private `member_application_email_delivery` outbox, separates decision state from notification state, prepares an Auth link before approving, and adds an admin retry control. The outbox is readable only by moderators; clients cannot write delivery records. Migration and Edge Function deployment are complete.
 
 ### Admin application alerts
 
-The database already writes privacy-conscious `admin_audit_events` for member application activity and publishes those events to Realtime. Before PR #16, the admin subscriber refreshed only the activity/audit feed, not the application queue. PR #16 refreshes the queue and displays the pending count.
+The database writes privacy-conscious `admin_audit_events` for member application, project and community activity and publishes those events to Realtime. The deployed admin subscriber refreshes the corresponding moderation queues and shows the pending application count.
 
 ### Other hardening items
 
@@ -161,7 +161,7 @@ The database already writes privacy-conscious `admin_audit_events` for member ap
 
 ## 6. Production migration ledger — live Supabase
 
-The live ledger contained these 12 versions at audit time:
+The live ledger now contains these 13 versions after the production rollout:
 
 | Version | Ledger name |
 |---|---|
@@ -177,12 +177,13 @@ The live ledger contained these 12 versions at audit time:
 | `20261118155950` | `admin_audit_read_privilege_hardening` |
 | `20261118160124` | `secure_service_role_session_overview` |
 | `20261118160320` | `audit_member_auth_session_events` |
+| `20261120145108` | `member_application_email_delivery` |
 
-These ledger identifiers do not map one-to-one to the repository migration filenames. This is a deployment blocker for new migrations until the mapping is documented and drift is resolved.
+The first 12 ledger identifiers do not map one-to-one to the repository migration filenames. The new member-application delivery migration was applied as a forward-only change after validating its live prerequisites. Historical migration reconciliation remains necessary before replaying or baselining any older migration.
 
 ## 7. Implementation plan
 
-### Phase 1 — isolated PR work (in progress)
+### Phase 1 — implementation and rollout (completed)
 
 - [x] Public community administrator profile, with no private address or admin email.
 - [x] Add the supplied administrator portrait to the public community leadership profile.
@@ -199,16 +200,18 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 - [x] Correct README backend reference and deployment notes.
 - [x] Expand smoke assertions for the new controls and security rules.
 - [x] Remove an unused unsupported `User.last_active_at` field from the admin-console Edge Function response after Deno type-checking exposed it.
-- [ ] Review final PR diff and wait for all checks on the latest commit.
+- [x] Review PR #16, pass CI run #113 and merge the changes to `main`.
+- [x] Apply the membership email-delivery migration and verify its RLS policies and column privileges.
+- [x] Deploy `claim-member-application` v1, `review-member-application` v3 and `admin-console` v4.
+- [x] Confirm Render deployed merge commit `3c818b742e848a240e12703f77da3202c4a1a724` and reported status `live`.
 
-### Phase 2 — schema and deployment reconciliation
+### Phase 2 — remaining configuration and verification
 
-1. Compare every repository migration file with the 12 production ledger entries.
+1. Reconcile the ten historical repository migrations with the first twelve production ledger entries; do not replay old SQL blindly.
 2. Compare live table definitions, triggers, functions, grants and RLS policies with repository SQL.
 3. Produce a non-destructive drift report and decide whether to baseline or add forward-only corrective migrations.
-4. Test the migration and updated Edge Function against a safe development database before production.
-5. Apply the migration before deploying the matching Edge Function.
-6. Verify Resend sender/domain and SMTP settings in the provider dashboards without exposing secrets.
+2. Verify Resend sender/domain and SMTP settings in the provider dashboards without exposing secrets.
+3. Run browser-level tests for the deployed public and admin workflows.
 
 ### Phase 3 — complete user journey tests
 
@@ -239,7 +242,7 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 
 - Work through feature branches and pull requests; do not push directly to `main`.
 - Do not deploy Edge Functions that depend on unapplied migrations.
-- Do not replay migrations against production until the live ledger is reconciled.
+- Do not replay historical migrations against production until the live ledger is reconciled.
 - Do not delete legacy tables or indexes based only on unused-index warnings.
 - Do not change the owner admin identity, existing member identities or project/application records.
 - Do not expose service-role keys, private applicant information, IP addresses or private admin contact details.
