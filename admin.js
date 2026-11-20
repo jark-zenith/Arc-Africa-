@@ -149,10 +149,15 @@ async function openUserDetail(id) {
 }
 
 async function loadApplications() {
-  const {data,error} = await db.from('member_applications').select('*').order('created_at',{ascending:false}).limit(300);
-  applicationRows = error ? [] : data || [];
+  const [applicationsResult, deliveryResult] = await Promise.all([
+    db.from('member_applications').select('*').order('created_at',{ascending:false}).limit(300),
+    db.from('member_application_email_delivery').select('application_id,decision,status,attempt_count,last_error,attempted_at,sent_at,updated_at').order('updated_at',{ascending:false}).limit(500)
+  ]);
+  if(deliveryResult.error) console.warn('Membership email delivery status unavailable:',deliveryResult.error.message);
+  const deliveryByApplication = new Map((deliveryResult.data||[]).map(item=>[item.application_id,item]));
+  applicationRows = applicationsResult.error ? [] : (applicationsResult.data||[]).map(item=>({...item,emailDelivery:deliveryByApplication.get(item.id)||null}));
   renderApplications();
-  if(error) $('#applicationsRows').innerHTML = `<p class="error-text">${esc(error.message)}</p>`;
+  if(applicationsResult.error) $('#applicationsRows').innerHTML = '<p class="error-text">'+esc(applicationsResult.error.message)+'</p>';
 }
 function renderApplications() {
   const pendingCount = applicationRows.filter(item=>['pending','changes_requested'].includes(item.status)).length;
@@ -160,13 +165,29 @@ function renderApplications() {
   if(pendingBadge) pendingBadge.textContent = pendingCount.toLocaleString('en-KE') + ' awaiting review';
   const query = ($('#applicationSearch')?.value||'').toLowerCase().trim(), filter = $('#applicationFilter')?.value||'open';
   const rows = applicationRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.applicant_name,item.email,item.county,item.github_username,item.motivation].join(' ').toLowerCase().includes(query));
-  $('#applicationsRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.applicant_name)} · ${esc(item.county)}</h3><p>${esc(item.email)} · GitHub: ${esc(item.github_username)} · <span class="status">${esc(item.status)}</span></p><p>${esc(item.motivation)}</p><p>${externalLink(item.linkedin_url,'LinkedIn')} ${externalLink(item.portfolio_url,'Portfolio')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))}</small></div><div class="actions">${item.status!=='approved'?`<button data-app="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-app="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-app="${esc(item.id)}" data-status="changes_requested">Request info</button></div></div>`).join('') || '<p class="empty-state">No applications match this view.</p>';
+  $('#applicationsRows').innerHTML = rows.map(item => {
+    const delivery=item.emailDelivery;
+    const deliveryLabel=!delivery?'Email status not recorded':delivery.status==='sent'?'Email sent':delivery.status==='failed'?'Email failed':'Email pending';
+    const retryButton=delivery?.status==='failed'?'<button data-retry-email="'+esc(item.id)+'">Retry email</button>':'';
+    const decisionButtons=(item.status!=='approved'?'<button data-app="'+esc(item.id)+'" data-status="approved">Approve</button>':'')+
+      (item.status!=='rejected'?'<button class="reject" data-app="'+esc(item.id)+'" data-status="rejected">Reject</button>':'')+
+      '<button data-app="'+esc(item.id)+'" data-status="changes_requested">Request info</button>';
+    return '<div class="row"><div><h3>'+esc(item.applicant_name)+' · '+esc(item.county)+'</h3><p>'+esc(item.email)+' · GitHub: '+esc(item.github_username)+' · <span class="status">'+esc(item.status)+'</span></p><p>'+esc(item.motivation)+'</p><p>'+externalLink(item.linkedin_url,'LinkedIn')+' '+externalLink(item.portfolio_url,'Portfolio')+'</p><small class="muted">Submitted '+esc(fmt(item.created_at))+'</small><small class="muted email-delivery-status">Notification: '+esc(deliveryLabel)+(delivery?.attempt_count?' · Attempts: '+Number(delivery.attempt_count):'')+(delivery?.last_error?' · '+esc(delivery.last_error):'')+'</small></div><div class="actions">'+decisionButtons+retryButton+'</div></div>';
+  }).join('') || '<p class="empty-state">No applications match this view.</p>';
+  $$('[data-retry-email]').forEach(button=>button.addEventListener('click',()=>retryApplicationNotification(button.dataset.retryEmail)));
 }
 async function reviewApplication(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note to applicant:') || '';
   const {data,error} = await db.functions.invoke('review-member-application',{body:{application_id:id,decision:status,note}});
   if(error||data?.error){toast(data?.error||error.message);return;}
   toast(data?.email_sent===false?'Decision saved, but the notification email was not sent.':`Application ${status.replaceAll('_',' ')}.`);
+  await loadConsole();
+}
+
+async function retryApplicationNotification(id) {
+  const {data,error}=await db.functions.invoke('review-member-application',{body:{application_id:id,action:'retry_notification'}});
+  if(error||data?.error){toast('Email retry failed: '+(data?.error||error.message));return;}
+  toast(data?.email_sent?'Applicant notification sent successfully.':(data?.email_error||'The decision remains saved, but email delivery is still failing.'));
   await loadConsole();
 }
 
