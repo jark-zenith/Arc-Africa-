@@ -54,49 +54,61 @@ The owner administrator account and a separate member account both exist. Preser
 | File | Responsibility |
 |---|---|
 | `index.html` | Public landing page, project/community sections, authentication and membership modal markup |
-| `styles.css` | Responsive site, modal, project, community and admin styling |
-| `app.js` | Supabase browser client, authentication, project discovery, membership applications, community submissions and public interactions |
+| `styles.css` | Responsive public site, modal, project and community styling |
+| `app.js` | Supabase browser client, authentication, project discovery, membership applications/resubmission, community submissions and public interactions |
 | `config.js` | Supabase URL and publishable browser key configuration |
 | `security.js` | Safe HTTP(S) URL validation used before rendering external links |
 | `discovery.mjs` | Project keyword/category/stage/country filtering |
 | `terms.html` | Public Terms of Use |
 | `privacy.html` | Public Privacy Policy |
+| `legal.css` | Shared Terms and Privacy page styling |
+| `README.md` | Project architecture, setup, configuration and deployment notes |
 
 ### Administrator and owner tools
 
 | File | Responsibility |
 |---|---|
 | `admin.html` | Private administrator console layout and panels |
-| `admin.js` | Admin authentication gate, metrics, member directory, application/project/community moderation, audit and activity feeds |
+| `admin.js` | Admin authentication gate, metrics, member directory, application/project/community moderation, audit/activity feeds and email retry control |
+| `admin.css` | Administrator console styling |
 | `admin-router.js` | Admin routing/entry behaviour |
 | `owner-tools.js` | Owner-only utilities |
 
-### Supabase Edge Functions
+### Supabase configuration and Edge Functions
 
 | File | Responsibility |
 |---|---|
+| `supabase/config.toml` | Supabase CLI project/function configuration |
 | `supabase/functions/admin-console/index.ts` | Verifies the administrator and returns protected console/session data using the service-role client |
-| `supabase/functions/review-member-application/index.ts` | Verifies moderator access, creates approval links, persists decisions and sends applicant notifications |
+| `supabase/functions/review-member-application/index.ts` | Verifies moderator access, provisions/links approved member accounts, persists decisions and tracks/sends applicant notifications |
 
-### Database migrations reviewed
+### Static assets
 
-- `supabase/migrations/202611100001_arc_africa_platform_core.sql`
-- `supabase/migrations/202611150001_arc_africa_community_hub.sql`
-- `supabase/migrations/202611180001_member_activity_privacy_audit.sql`
-- `supabase/migrations/202611180005_audit_member_auth_session_events.sql`
-- New proposed migration in PR #16: `supabase/migrations/202611200001_member_application_email_delivery.sql`
+- `assets/arc-africa/`: 20+ JPG concept images used by the public project showcase.
 
-The repository contains additional migrations beyond the four listed above; the full repository migration set must be reconciled against the production ledger before any migration is applied.
+### Database migrations in the repository
+
+1. `supabase/migrations/202611100001_arc_africa_platform_core.sql`
+2. `supabase/migrations/202611100002_security_hardening.sql`
+3. `supabase/migrations/202611100003_query_performance.sql`
+4. `supabase/migrations/202611150001_arc_africa_community_hub.sql`
+5. `supabase/migrations/202611160001_arc_africa_admin_bootstrap.sql`
+6. `supabase/migrations/202611180001_member_activity_privacy_audit.sql`
+7. `supabase/migrations/202611180002_legal_acceptances_and_activity_retention.sql`
+8. `supabase/migrations/202611180003_admin_audit_read_privilege_hardening.sql`
+9. `supabase/migrations/202611180004_secure_service_role_session_overview.sql`
+10. `supabase/migrations/202611180005_audit_member_auth_session_events.sql`
+11. Proposed in PR #16: `supabase/migrations/202611200001_member_application_email_delivery.sql`
 
 ### Automated tests and CI
 
 | File | Responsibility |
 |---|---|
 | `tests/smoke.mjs` | Static capability and security assertions across the public/admin code |
-| `tests/rls-performance.mjs` | RLS/performance-oriented checks |
+| `tests/rls-performance.mjs` | RLS/performance-oriented migration checks |
 | `tests/community.mjs` | Community feature checks |
 | `tests/discovery.mjs` | Project discovery/filter checks |
-| `.github/workflows/validate.yml` | Runs the four Node test scripts on PRs and pushes to `main` |
+| `.github/workflows/validate.yml` | Runs Node tests, browser-JavaScript syntax checks and Deno Edge Function type-checks on PRs and pushes to `main` |
 
 CI also runs Node syntax checks for browser JavaScript and Deno type-checks for both Edge Functions. These checks are not yet full browser end-to-end tests of signup, verification, application submission, moderation, email delivery and member access.
 
