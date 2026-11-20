@@ -170,6 +170,8 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 - [x] Public community administrator profile, with no private address or admin email.
 - [x] Live application queue refresh from the existing audit/RealtIme stream.
 - [x] Pending application count in the admin console.
+- [x] Verified signup redirect into membership application onboarding, with existing-application status checks and applicant name/email prefill.
+- [x] Approval invitation welcome redirect handling.
 - [x] Private email-delivery outbox and retry action in code.
 - [x] Restrictive membership application RLS/column-grant migration drafted.
 - [x] Correct README backend reference and deployment notes.
