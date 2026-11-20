@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
   const attemptedAt = new Date().toISOString();
   const attemptCount = (previousDelivery?.attempt_count || 0) + 1;
-  await admin.from("member_application_email_delivery").upsert({
+  const { error: deliveryStartError } = await admin.from("member_application_email_delivery").upsert({
     application_id: id,
     decision,
     status: "pending",
@@ -135,6 +135,9 @@ Deno.serve(async (req) => {
     sent_at: null,
     updated_at: attemptedAt
   }, { onConflict: "application_id,decision" });
+  if (deliveryStartError) {
+    return reply({ ok: true, email_sent: false, email_error: "The moderation decision is saved, but the email delivery record could not be created. No email was sent." }, 200);
+  }
 
   let emailError = "";
   if (!mailKey || !from) {
