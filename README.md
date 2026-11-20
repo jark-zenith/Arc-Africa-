@@ -9,7 +9,7 @@ Arc Africa is a community project discovery and collaboration platform. Public b
 - Private Supabase Storage bucket for project assets
 
 ## Backend
-Supabase project: `Arc Africa` (EU West / Ireland), ref `zlhvczgjzgmiugdjfmgj`.
+Supabase project: `Arc Africa` (Singapore, ap-southeast-1), ref `fgtkttnhhhvgonrwhakj`. The production frontend in `config.js` points to this project. The older project reference previously recorded in this README was stale.
 
 Apply the migration in `supabase/migrations/202611100001_arc_africa_platform_core.sql` to a fresh project. The migration creates profiles, projects, milestones, updates, comments, ratings and favourites; ownership and moderation policies; and a private asset bucket.
 
@@ -41,7 +41,7 @@ Supabase remains the primary backend because the platform already uses relationa
 
 Applications are public submissions and do not require an account. Full name, email, GitHub username, LinkedIn profile, county, technology interests, motivation and acceptance of the community commitment are required; portfolio is optional. GitHub and LinkedIn links are reviewed privately and are not published on member profiles.
 
-Only moderators can review applications. The `review-member-application` Edge Function verifies the moderator session, creates a one-time Supabase invite/sign-in link after approval, sends the decision email through Resend, and only then records the decision. Set the Edge Function secrets `RESEND_API_KEY`, `ARC_AFRICA_FROM_EMAIL` (a sender verified by Resend), and `ARC_AFRICA_SITE_URL`. Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to the function runtime. Never put privileged keys in browser code. If email delivery fails, the application remains pending and can be retried.
+Only moderators can review applications. The `review-member-application` Edge Function verifies the moderator session and persists the moderation decision independently from email delivery. Approvals provision or link the applicant's Supabase Auth account before the decision is committed. Decision-email attempts are tracked in the private `member_application_email_delivery` outbox; failed notifications can be retried from the administrator application queue without repeating the moderation decision. Set the Edge Function secrets `RESEND_API_KEY`, `ARC_AFRICA_FROM_EMAIL` (a sender verified by Resend), and `ARC_AFRICA_SITE_URL`. Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to the function runtime. Never put privileged keys in browser code. Apply `supabase/migrations/202611200001_member_application_email_delivery.sql` before deploying the matching Edge Function. For the existing production project, first reconcile the live migration ledger with the repository migrations; do not blindly replay migrations.
 
 ## Discovery and administration
 The public project directory supports multi-field keyword search and category, stage and country filters. Approved moderators can switch from their personal dashboard to the admin control room to review applications, search the member directory, moderate projects and community posts, and monitor recent application activity.
