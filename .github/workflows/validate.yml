@@ -13,6 +13,12 @@ jobs:
         with:
           node-version: 24
       - run: node tests/smoke.mjs
+      - run: node --check app.js
+      - run: node --check admin.js
+      - run: node --check admin-router.js
+      - run: node --check owner-tools.js
+      - run: node --check security.js
+      - run: node --check discovery.mjs
       - run: node tests/rls-performance.mjs
       - run: node tests/community.mjs
       - run: node tests/discovery.mjs
