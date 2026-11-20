@@ -64,6 +64,10 @@ The owner administrator account and a separate member account both exist. Preser
 | `legal.css` | Shared Terms and Privacy page styling |
 | `README.md` | Project architecture, setup, configuration and deployment notes |
 
+### Public static assets
+
+- `assets/arc-africa/community-admin.jpg`: compressed portrait supplied for the public community leadership section.
+
 ### Administrator and owner tools
 
 | File | Responsibility |
@@ -121,7 +125,7 @@ The live `member_applications` table has RLS enabled, but its deployed policies 
 
 - `Anyone can submit membership application` permits anon/authenticated inserts when `commitment_accepted = true` and `status = 'pending'`.
 - That live insert policy does **not** bind `user_id` to `auth.uid()`, and does not require `reviewed_by` and `reviewed_at` to be null.
-- Live column privileges granted anon/authenticated INSERT/UPDATE/SELECT across all application columns, including review metadata. RLS still limits row access and status values, but the broad grants and incomplete insert check permit identity/metadata spoofing within the insert policy.
+- Live column privileges granted anon/authenticated INSERT/UPDATE/SELECT across all application columns, including review metadata. A table-level `REVOKE ALL` alone would not clear these legacy column grants; the proposed migration explicitly revokes all existing column-level privileges before applying the least-privilege grants. RLS still limits row access and status values, but the broad grants and incomplete insert check permit identity/metadata spoofing within the insert policy.
 - The live moderator policy is a broad `FOR ALL` policy. The proposed migration replaces it with narrower read access and reserves review writes for the service-role Edge Function.
 
 PR #16 adds a migration that:
@@ -181,6 +185,9 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 ### Phase 1 — isolated PR work (in progress)
 
 - [x] Public community administrator profile, with no private address or admin email.
+- [x] Add the supplied administrator portrait to the public community leadership profile.
+- [x] Expand admin review details for membership applications, projects (including milestones and updates), and community posts.
+- [x] Refresh project and community moderation queues from the existing realtime audit stream.
 - [x] Live application queue refresh from the existing audit/RealtIme stream.
 - [x] Pending application count in the admin console.
 - [x] Verified signup redirect into membership application onboarding, with existing-application status checks and applicant name/email prefill.
