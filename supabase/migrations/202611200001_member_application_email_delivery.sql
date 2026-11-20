@@ -16,6 +16,13 @@ drop policy if exists "Moderators read all member applications" on public.member
 drop policy if exists "Applicants resubmit returned applications" on public.member_applications;
 
 revoke all on table public.member_applications from anon, authenticated;
+-- PostgreSQL keeps column-level grants when table-level grants are revoked.
+-- Explicitly clear the pre-existing column grants before granting the minimum set.
+revoke all (
+  id, user_id, applicant_name, email, github_username, linkedin_url,
+  portfolio_url, county, interests, experience, motivation,
+  commitment_accepted, status, moderator_note, reviewed_by, reviewed_at, created_at
+) on table public.member_applications from anon, authenticated;
 grant insert (
   user_id,
   applicant_name,
