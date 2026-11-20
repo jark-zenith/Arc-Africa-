@@ -155,6 +155,9 @@ async function loadApplications() {
   if(error) $('#applicationsRows').innerHTML = `<p class="error-text">${esc(error.message)}</p>`;
 }
 function renderApplications() {
+  const pendingCount = applicationRows.filter(item=>['pending','changes_requested'].includes(item.status)).length;
+  const pendingBadge = $('#applicationPendingCount');
+  if(pendingBadge) pendingBadge.textContent = pendingCount.toLocaleString('en-KE') + ' awaiting review';
   const query = ($('#applicationSearch')?.value||'').toLowerCase().trim(), filter = $('#applicationFilter')?.value||'open';
   const rows = applicationRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.applicant_name,item.email,item.county,item.github_username,item.motivation].join(' ').toLowerCase().includes(query));
   $('#applicationsRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.applicant_name)} · ${esc(item.county)}</h3><p>${esc(item.email)} · GitHub: ${esc(item.github_username)} · <span class="status">${esc(item.status)}</span></p><p>${esc(item.motivation)}</p><p>${externalLink(item.linkedin_url,'LinkedIn')} ${externalLink(item.portfolio_url,'Portfolio')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))}</small></div><div class="actions">${item.status!=='approved'?`<button data-app="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-app="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-app="${esc(item.id)}" data-status="changes_requested">Request info</button></div></div>`).join('') || '<p class="empty-state">No applications match this view.</p>';
@@ -256,7 +259,18 @@ async function loadHealth() {
 }
 function watchActivity() {
   if(activityChannel) return;
-  activityChannel=db.channel('arc-africa-admin-activity').on('postgres_changes',{event:'*',schema:'public',table:'admin_audit_events'},()=>{loadActivity();loadAudit();}).subscribe();
+  activityChannel=db.channel('arc-africa-admin-activity')
+    .on('postgres_changes',{event:'*',schema:'public',table:'admin_audit_events'},payload=>{
+      loadActivity();
+      loadAudit();
+      if(payload?.new?.target_type==='member_applications') {
+        loadApplications();
+        if(payload.new.action==='member_activity:member_applications:insert' && payload.new.actor_id!==currentUser?.id) {
+          toast('New membership application received. The review queue has been refreshed.');
+        }
+      }
+    })
+    .subscribe();
 }
 
 function exportCsv(filename, rows) {
