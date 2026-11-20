@@ -36,6 +36,7 @@ assert.ok(admin.includes('applicationPendingCount'),'admin membership queue must
 assert.ok(admin.includes('member_application_email_delivery')&&admin.includes('retryApplicationNotification'),'admin must display and retry failed applicant notifications');
 assert.ok(admin.includes("['failed','pending'].includes(delivery?.status)"),'admin must expose retry for failed or interrupted notification attempts');
 assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&html.includes('COMMUNITY ADMINISTRATOR'),'public site must identify its community administrator without exposing private contact details');
+assert.ok(html.includes('/assets/arc-africa/community-admin.jpg')&&html.includes('Portrait of Jark Pruden'),'public community administrator profile must use the supplied portrait with descriptive alt text');
 for(const id of ['userStatusFilter','userPager','userModal','queueSummary','growthBars','exportUsers','exportActivity','exportAudit','exportMessages'])assert.ok(adminHtml.includes('id=\"'+id+'\"'),'missing admin control: '+id);
 for(const capability of ['openUserDetail','renderGrowth','exportCsv','renderApplications','renderProjects','renderCommunity','renderMessages'])assert.ok(admin.includes(capability),'missing admin capability: '+capability);
 assert.ok(admin.includes('actor_id===currentUser?.id'),'administrator audit must be separated from member activity');
