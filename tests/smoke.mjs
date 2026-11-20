@@ -37,7 +37,7 @@ assert.ok(admin.includes('member_application_email_delivery')&&admin.includes('r
 assert.ok(admin.includes("['failed','pending'].includes(delivery?.status)"),'admin must expose retry for failed or interrupted notification attempts');
 assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&html.includes('FOUNDER & COMMUNITY ADMINISTRATOR'),'public site must identify its community administrator without exposing private contact details');
 assert.ok(html.includes('/assets/arc-africa/community-admin.jpg')&&html.includes('Portrait of Jark Pruden'),'public community administrator profile must use the supplied portrait with descriptive alt text');
-assert.ok(js.includes("from('project_updates').select('id,project_id,title,body,status,created_at,moderator_note')")&&js.includes('Share project progress')&&js.includes('submitProjectProgressUpdate'),'project owners must be able to review their progress history and publish updates from their account');
+assert.ok(js.includes("from('project_updates').select('id,project_id,author_id,title,body,status,created_at,moderator_note')")&&js.includes('data-progress-project')&&js.includes('submitProjectProgressUpdate'),'project owners must be able to review their progress history and publish updates from their account');
 assert.ok(js.includes("status:'published'")&&js.includes('Project progress shared with the community.'),'project progress submissions must be published for community visibility');
 assert.ok(html.includes('name="cover_image"')&&html.includes('projectImagePreview'),'project submission must support representative project photographs');
 assert.ok(js.includes('uploadArcImage')&&js.includes('openProjectEditor'),'members must be able to upload project media and edit their own projects');
