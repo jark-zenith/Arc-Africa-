@@ -2,6 +2,7 @@
 -- This is an additive, private outbox: applicants cannot read or modify delivery metadata.
 
 -- Harden the live membership application surface.
+alter table public.member_applications enable row level security;
 -- Existing production grants allowed anon/authenticated to address moderator metadata
 -- columns, and the deployed INSERT policy did not bind user_id to auth.uid().
 -- Only the Edge Function's service-role client may write review metadata.
