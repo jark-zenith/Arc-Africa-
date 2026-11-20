@@ -171,6 +171,7 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 - [x] Live application queue refresh from the existing audit/RealtIme stream.
 - [x] Pending application count in the admin console.
 - [x] Verified signup redirect into membership application onboarding, with existing-application status checks and applicant name/email prefill.
+- [x] Applicant resubmission flow for returned/rejected linked applications, including visible moderator feedback and clearing old review metadata under restrictive RLS checks.
 - [x] Approval invitation welcome redirect handling.
 - [x] Private email-delivery outbox and retry action in code.
 - [x] Restrictive membership application RLS/column-grant migration drafted.
