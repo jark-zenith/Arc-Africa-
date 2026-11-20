@@ -98,7 +98,7 @@ The repository contains additional migrations beyond the four listed above; the 
 | `tests/discovery.mjs` | Project discovery/filter checks |
 | `.github/workflows/validate.yml` | Runs the four Node test scripts on PRs and pushes to `main` |
 
-These checks are not yet full browser end-to-end tests of signup, verification, application submission, moderation, email delivery and member access.
+CI also runs Node syntax checks for browser JavaScript and Deno type-checks for both Edge Functions. These checks are not yet full browser end-to-end tests of signup, verification, application submission, moderation, email delivery and member access.
 
 ## 5. Production database and security findings
 
