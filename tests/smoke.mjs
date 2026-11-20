@@ -39,6 +39,8 @@ assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&h
 assert.ok(html.includes('/assets/arc-africa/community-admin.jpg')&&html.includes('Portrait of Jark Pruden'),'public community administrator profile must use the supplied portrait with descriptive alt text');
 for(const id of ['userStatusFilter','userPager','userModal','queueSummary','growthBars','exportUsers','exportActivity','exportAudit','exportMessages'])assert.ok(adminHtml.includes('id=\"'+id+'\"'),'missing admin control: '+id);
 for(const capability of ['openUserDetail','renderGrowth','exportCsv','renderApplications','renderProjects','renderCommunity','renderMessages'])assert.ok(admin.includes(capability),'missing admin capability: '+capability);
+assert.ok((admin.match(/select\('id'\)\.maybeSingle\(\)/g)||[]).length>=3,'project, community and inbox moderation must verify a row was actually updated');
+assert.ok(admin.includes("data?.email_error||'The notification email was not sent.'"),'membership review must show the actual email/provisioning failure detail');
 assert.ok(admin.includes('actor_id===currentUser?.id'),'administrator audit must be separated from member activity');
 assert.ok(admin.includes('safeUrl'),'external submission links must be restricted to HTTP(S) URLs');
 assert.ok(admin.includes('/^[\\s]*[=+\\-@]/'),'CSV exports must neutralise spreadsheet formula injection');
