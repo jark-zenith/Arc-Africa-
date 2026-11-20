@@ -181,7 +181,7 @@ async function reviewApplication(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note to applicant:') || '';
   const {data,error} = await db.functions.invoke('review-member-application',{body:{application_id:id,decision:status,note}});
   if(error||data?.error){toast(data?.error||error.message);return;}
-  toast(data?.email_sent===false?'Decision saved, but the notification email was not sent.':`Application ${status.replaceAll('_',' ')}.`);
+  toast(data?.email_sent===false?'Decision saved. '+(data?.email_error||'The notification email was not sent.'):`Application ${status.replaceAll('_',' ')}.`);
   await loadConsole();
 }
 
@@ -230,8 +230,8 @@ function renderProjects() {
 }
 async function reviewProject(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note for project owner:') || '';
-  const {error} = await db.from('projects').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast(error.message);return;} toast(`Project ${status.replaceAll('_',' ')}.`); await loadProjects(); renderOverview(new Date().toISOString());
+  const {data,error} = await db.from('projects').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id).select('id').maybeSingle();
+  if(error||!data){toast(error?.message||'The project was not updated. Refresh the queue and try again.');return;} toast(`Project ${status.replaceAll('_',' ')}.`); await loadProjects(); renderOverview(new Date().toISOString());
 }
 
 async function loadCommunity() {
@@ -246,8 +246,8 @@ function renderCommunity() {
 }
 async function reviewPost(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note for contributor:') || '';
-  const {error} = await db.from('community_posts').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id);
-  if(error){toast(error.message);return;} toast(`Community post ${status.replaceAll('_',' ')}.`); await loadCommunity(); renderOverview(new Date().toISOString());
+  const {data,error} = await db.from('community_posts').update({status,moderator_note:note,reviewed_by:currentUser.id,reviewed_at:new Date().toISOString()}).eq('id',id).select('id').maybeSingle();
+  if(error||!data){toast(error?.message||'The community post was not updated. Refresh the queue and try again.');return;} toast(`Community post ${status.replaceAll('_',' ')}.`); await loadCommunity(); renderOverview(new Date().toISOString());
 }
 
 async function loadMessages() {
@@ -261,8 +261,8 @@ function renderMessages() {
   $('#messagesRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.subject)} <span class="status ${item.status==='unread'?'status-warn':''}">${esc(item.status)}</span></h3><p>${esc(item.sender_name)} · ${esc(item.sender_email)} · ${esc(fmt(item.created_at))}</p><p class="message-body">${esc(item.message)}</p></div><div class="actions"><button data-msg="${esc(item.id)}" data-status="read">Mark read</button><button data-msg="${esc(item.id)}" data-status="replied">Mark replied</button><button class="reject" data-msg="${esc(item.id)}" data-status="archived">Archive</button></div></div>`).join('') || '<p class="empty-state">No messages match this view.</p>';
 }
 async function updateMessage(id,status) {
-  const {error} = await db.from('admin_inbox').update({status}).eq('id',id);
-  if(error){toast(error.message);return;} toast(`Message marked ${status}.`); await loadMessages(); renderOverview(new Date().toISOString());
+  const {data,error} = await db.from('admin_inbox').update({status}).eq('id',id).select('id').maybeSingle();
+  if(error||!data){toast(error?.message||'The message status was not updated. Refresh the inbox and try again.');return;} toast(`Message marked ${status}.`); await loadMessages(); renderOverview(new Date().toISOString());
 }
 
 async function loadAudit() {
