@@ -192,3 +192,18 @@ html,body{width:100%;overflow-x:hidden}
 .admin-submission-details .detail-wide{grid-column:1/-1}
 .admin-project-cover{display:block;max-width:220px;max-height:140px;margin:12px 0;border-radius:10px;object-fit:cover}
 @media(max-width:650px){.admin-submission-details .detail-grid{grid-template-columns:1fr}}
+
+/* Project owner progress journal */
+.account-project-card{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;background:#fbfcfc}
+.account-progress-list{display:grid;gap:8px;margin-top:10px}
+.account-progress-item{padding:11px 12px;border-left:3px solid var(--accent,#477c68);background:#fff;border-radius:4px}
+.account-progress-item>b{font-size:13px}
+.account-progress-item>.status{float:right}
+.account-progress-item p{margin:7px 0;color:var(--muted);font-size:12px;line-height:1.6;white-space:pre-wrap}
+.account-progress-item small{color:var(--muted);font-size:10px}
+.progress-composer{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.progress-composer summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--ink);padding:6px 0}
+.project-progress-form{display:grid;gap:10px;padding-top:10px}
+.project-progress-form label{display:grid;gap:6px;font-size:12px;font-weight:600}
+.project-progress-form input,.project-progress-form textarea{width:100%;border:1px solid var(--line);border-radius:5px;padding:10px;font:inherit;font-size:13px;background:#fff}
+.project-progress-form textarea{resize:vertical}

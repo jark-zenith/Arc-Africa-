@@ -37,6 +37,11 @@ assert.ok(admin.includes('member_application_email_delivery')&&admin.includes('r
 assert.ok(admin.includes("['failed','pending'].includes(delivery?.status)"),'admin must expose retry for failed or interrupted notification attempts');
 assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&html.includes('FOUNDER & COMMUNITY ADMINISTRATOR'),'public site must identify its community administrator without exposing private contact details');
 assert.ok(html.includes('/assets/arc-africa/community-admin.jpg')&&html.includes('Portrait of Jark Pruden'),'public community administrator profile must use the supplied portrait with descriptive alt text');
+assert.ok(js.includes("from('project_updates').select('id,project_id,title,body,status,created_at,moderator_note')")&&js.includes('Share project progress')&&js.includes('submitProjectProgressUpdate'),'project owners must be able to review their progress history and publish updates from their account');
+assert.ok(js.includes("status:'published'")&&js.includes('Project progress shared with the community.'),'project progress submissions must be published for community visibility');
+assert.ok(admin.includes("if(target==='project_updates')")&&admin.includes('loadProjects();'),'admin project review details must refresh when a project owner posts progress');
+assert.ok(read('../supabase/migrations/202611210001_project_owner_progress_updates.sql').includes('Project owners read own updates')&&read('../supabase/migrations/202611210001_project_owner_progress_updates.sql').includes("p.status in ('published', 'approved')"),'owners must be able to read their own project progress updates');
+
 for(const id of ['userStatusFilter','userPager','userModal','queueSummary','growthBars','exportUsers','exportActivity','exportAudit','exportMessages'])assert.ok(adminHtml.includes('id=\"'+id+'\"'),'missing admin control: '+id);
 for(const capability of ['openUserDetail','renderGrowth','exportCsv','renderApplications','renderProjects','renderCommunity','renderMessages'])assert.ok(admin.includes(capability),'missing admin capability: '+capability);
 assert.ok((admin.match(/select\('id'\)\.maybeSingle\(\)/g)||[]).length>=3,'project, community and inbox moderation must verify a row was actually updated');
