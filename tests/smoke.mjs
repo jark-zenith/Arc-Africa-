@@ -42,6 +42,14 @@ assert.ok(js.includes("status:'published'")&&js.includes('Project progress share
 assert.ok(html.includes('name="cover_image"')&&html.includes('projectImagePreview'),'project submission must support representative project photographs');
 assert.ok(js.includes('uploadArcImage')&&js.includes('openProjectEditor'),'members must be able to upload project media and edit their own projects');
 assert.ok(js.includes('saveMemberProfile')&&js.includes('member-avatars'),'members must be able to upload a profile photograph and edit their profile');
+assert.ok(js.includes('workspace-tabs')&&js.includes('workspace-settings')&&js.includes('changeMemberPassword'),'top-right account must open a complete member workspace and account settings');
+assert.ok(js.includes("from('projects').update(row)")&&js.includes('Project updated and sent for review.'),'project edits must persist and route approved content back for review');
+assert.ok(js.includes("from('project_updates').update({title:title.trim(),body:body.trim()})"),'members must be able to edit their own progress updates');
+assert.ok(read('../supabase/migrations/202611210002_member_workspace_management.sql').includes('protect_project_owner_updates')&&read('../supabase/migrations/202611210002_member_workspace_management.sql').includes('protect_member_profile_fields'),'database must protect administrator-only moderation and membership fields');
+
+assert.ok(html.includes('name="cover_image"')&&html.includes('projectImagePreview'),'project submission must support representative project photographs');
+assert.ok(js.includes('uploadArcImage')&&js.includes('openProjectEditor'),'members must be able to upload project media and edit their own projects');
+assert.ok(js.includes('saveMemberProfile')&&js.includes('member-avatars'),'members must be able to upload a profile photograph and edit their profile');
 assert.ok(js.includes('workspace-tabs')&&js.includes('workspace-settings')&&js.includes('changeMemberPassword'),'top-right account must open a full member workspace and account settings');
 assert.ok(js.includes("from('projects').update(row)")&&js.includes('Project updated and sent for review.'),'project edits must persist and route previously approved content back for review');
 assert.ok(js.includes("from('project_updates').update({title:title.trim(),body:body.trim()})"),'members must be able to edit their own progress updates');
