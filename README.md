@@ -28,7 +28,7 @@ Project submissions default to `pending`; only approved projects are publicly di
 
 ## Community hub (first phase)
 
-Arc Africa is launching Kenya-first with application-based publishing membership. Public visitors can browse approved content. New contributors apply for membership; moderators approve or return applications. Existing profiles are grandfathered as approved by the community-hub migration.
+Arc Africa is launching Kenya-first with application-based publishing membership. Public visitors can browse approved content. New contributors apply for membership; moderators approve, reject or request changes. Applicants with a linked account can update and resubmit a returned application using the moderator feedback. Existing profiles are grandfathered as approved by the community-hub migration.
 
 Approved members can submit projects (existing workflow) and moderated community posts: upcoming technology events, jobs/internships/grants/programmes, technology issues and discussions, and Journal articles/tutorials. All submissions remain pending until a moderator approves them.
 
