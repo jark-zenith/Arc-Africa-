@@ -193,14 +193,40 @@ async function retryApplicationNotification(id) {
 }
 
 async function loadProjects() {
-  const {data,error} = await db.from('projects').select('id,owner_id,title,summary,description,category,country,location,status,created_at,repository_url,demo_url,website_url,cover_image_url,stage,featured,budget,funding_goal,tags,moderator_note,reviewed_at').order('created_at',{ascending:false}).limit(300);
-  projectRows = error ? [] : data || []; renderProjects();
-  if(error) $('#projectsRows').innerHTML = `<p class="error-text">${esc(error.message)}</p>`;
+  const [projectsResult,milestonesResult,updatesResult]=await Promise.all([
+    db.from('projects').select('id,owner_id,title,summary,description,category,country,location,status,created_at,repository_url,demo_url,website_url,cover_image_url,stage,featured,budget,funding_goal,tags,moderator_note,reviewed_at').order('created_at',{ascending:false}).limit(300),
+    db.from('project_milestones').select('id,project_id,title,description,target_date,due_date,completed,completed_at,sort_order').order('sort_order',{ascending:true}).limit(1000),
+    db.from('project_updates').select('id,project_id,title,body,status,created_at').order('created_at',{ascending:false}).limit(1000)
+  ]);
+  if(milestonesResult.error)console.warn('Project milestones unavailable:',milestonesResult.error.message);
+  if(updatesResult.error)console.warn('Project updates unavailable:',updatesResult.error.message);
+  const milestones=new Map(),updates=new Map();
+  for(const item of milestonesResult.data||[]){if(!milestones.has(item.project_id))milestones.set(item.project_id,[]);milestones.get(item.project_id).push(item);}
+  for(const item of updatesResult.data||[]){if(!updates.has(item.project_id))updates.set(item.project_id,[]);updates.get(item.project_id).push(item);}
+  projectRows=projectsResult.error?[]:(projectsResult.data||[]).map(item=>({...item,milestones:milestones.get(item.id)||[],updates:updates.get(item.id)||[]}));
+  renderProjects();
+  if(projectsResult.error)$('#projectsRows').innerHTML='<p class="error-text">'+esc(projectsResult.error.message)+'</p>';
 }
 function renderProjects() {
-  const query = ($('#projectSearch')?.value||'').toLowerCase().trim(), filter = $('#projectFilter')?.value||'open';
-  const rows = projectRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.title,item.category,item.country,item.summary,item.description].join(' ').toLowerCase().includes(query));
-  $('#projectsRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.title)} <span class="status">${esc(item.status)}</span></h3><p>${esc(item.category)} · ${esc(item.country)} · ${esc(item.stage||'idea')}${item.featured?' · Featured':''}</p><p>${esc(item.summary)}</p><details class="admin-submission-details"><summary>View full project description</summary><div class="detail-grid"><div class="detail-field detail-wide"><strong>Description</strong><span>${esc(item.description||item.summary)}</span></div><div class="detail-field"><strong>Stage</strong><span>${esc(item.stage||'idea')}</span></div><div class="detail-field"><strong>Tags</strong><span>${esc(Array.isArray(item.tags)?item.tags.join(', '):item.tags)}</span></div><div class="detail-field"><strong>Budget</strong><span>${esc(item.budget??'Not provided')}</span></div><div class="detail-field"><strong>Funding goal</strong><span>${esc(item.funding_goal??'Not provided')}</span></div></div></details><p>${externalLink(item.repository_url,'Repository')} ${externalLink(item.demo_url,'Demo')} ${externalLink(item.website_url,'Website')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))} · Owner ${esc(profileFor(item.owner_id).display_name||item.owner_id||'Unknown')}</small></div><div class="actions">${item.status!=='approved'?`<button data-project="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-project="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-project="${esc(item.id)}" data-status="changes_requested">Request changes</button></div></div>`).join('') || '<p class="empty-state">No project submissions match this view.</p>';
+  const query=($('#projectSearch')?.value||'').toLowerCase().trim(),filter=$('#projectFilter')?.value||'open';
+  const rows=projectRows.filter(item=>(filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter))&&[item.title,item.category,item.country,item.summary,item.description].join(' ').toLowerCase().includes(query));
+  $('#projectsRows').innerHTML=rows.map(item=>{
+    const milestones=item.milestones.map(m=>'<li><b>'+esc(m.title)+'</b> · '+esc(m.completed?'Completed':'Planned')+(m.due_date||m.target_date?' · Due '+esc(m.due_date||m.target_date):'')+(m.description?'<p>'+esc(m.description)+'</p>':'')+'</li>').join('')||'<li>No milestones submitted.</li>';
+    const updates=item.updates.map(u=>'<li><b>'+esc(u.title)+'</b> · '+esc(u.status)+' · '+esc(fmt(u.created_at))+'<p>'+esc(u.body)+'</p></li>').join('')||'<li>No project updates submitted.</li>';
+    const cover=safeUrl(item.cover_image_url)?'<img class="admin-project-cover" src="'+esc(safeUrl(item.cover_image_url))+'" alt="Project cover image" loading="lazy">':'';
+    const details='<details class="admin-submission-details"><summary>View full project, milestones and updates</summary><div class="detail-grid">'+
+      '<div class="detail-field detail-wide"><strong>Full description</strong><span>'+esc(item.description||item.summary||'No description provided')+'</span></div>'+
+      '<div class="detail-field"><strong>Stage</strong><span>'+esc(item.stage||'idea')+'</span></div>'+
+      '<div class="detail-field"><strong>Location</strong><span>'+esc([item.location,item.country].filter(Boolean).join(', '))+'</span></div>'+
+      '<div class="detail-field"><strong>Tags</strong><span>'+esc(Array.isArray(item.tags)?item.tags.join(', '):item.tags)+'</span></div>'+
+      '<div class="detail-field"><strong>Budget</strong><span>'+esc(item.budget??'Not provided')+'</span></div>'+
+      '<div class="detail-field"><strong>Funding goal</strong><span>'+esc(item.funding_goal??'Not provided')+'</span></div>'+
+      '<div class="detail-field detail-wide"><strong>Milestones ('+item.milestones.length+')</strong><span><ul>'+milestones+'</ul></span></div>'+
+      '<div class="detail-field detail-wide"><strong>Updates ('+item.updates.length+')</strong><span><ul>'+updates+'</ul></span></div>'+
+      (item.moderator_note?'<div class="detail-field detail-wide"><strong>Moderator note</strong><span>'+esc(item.moderator_note)+'</span></div>':'')+
+      '</div></details>';
+    return '<div class="row"><div><h3>'+esc(item.title)+' <span class="status">'+esc(item.status)+'</span></h3><p>'+esc(item.category)+' · '+esc(item.country)+' · '+esc(item.stage||'idea')+(item.featured?' · Featured':'')+'</p>'+cover+'<p>'+esc(item.summary)+'</p><p>'+externalLink(item.repository_url,'Repository')+' '+externalLink(item.demo_url,'Demo')+' '+externalLink(item.website_url,'Website')+'</p>'+details+'<small class="muted">Submitted '+esc(fmt(item.created_at))+' · Owner '+esc(profileFor(item.owner_id).display_name||item.owner_id||'Unknown')+'</small></div><div class="actions">'+(item.status!=='approved'?'<button data-project="'+esc(item.id)+'" data-status="approved">Approve</button>':'')+(item.status!=='rejected'?'<button class="reject" data-project="'+esc(item.id)+'" data-status="rejected">Reject</button>':'')+'<button data-project="'+esc(item.id)+'" data-status="changes_requested">Request changes</button></div></div>';
+  }).join('')||'<p class="empty-state">No project submissions match this view.</p>';
 }
 async function reviewProject(id,status) {
   const note = status==='approved' ? '' : prompt('Optional note for project owner:') || '';
