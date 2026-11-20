@@ -322,6 +322,10 @@ function watchActivity() {
         loadProjects();
         if(action==='member_activity:projects:insert' && payload.new.actor_id!==currentUser?.id) toast('A new project has been submitted for review.');
       }
+      if(target==='project_updates') {
+        loadProjects();
+        if(action==='member_activity:project_updates:insert' && payload.new.actor_id!==currentUser?.id) toast('A project owner has shared a progress update.');
+      }
       if(target==='community_posts') {
         loadCommunity();
         if(action==='member_activity:community_posts:insert' && payload.new.actor_id!==currentUser?.id) toast('A new community post has been submitted for review.');
