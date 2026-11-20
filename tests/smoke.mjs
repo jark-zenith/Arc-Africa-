@@ -10,8 +10,8 @@ assert.ok(!/service[_-]?role/i.test(html+js),'service role key must never be shi
 assert.equal(safeHttpUrl('https://example.com/path?q=1'),'https://example.com/path?q=1');
 for(const value of ['javascript:alert(1)','data:text/html,<script>alert(1)</script>','file:///etc/passwd','//example.com','/relative/path','not a URL',''])assert.equal(safeHttpUrl(value),null);
 assert.ok(js.includes("['moderator','admin'].includes(profile?.role)"),'admin role must have moderator dashboard and project review access');
-assert.ok(review.includes('Persist the decision first'),'membership decisions must persist before email delivery');
-assert.ok(review.includes('email_sent: emailSent'),'approval response must report notification delivery accurately');
+assert.ok(review.indexOf('from("member_applications").update') < review.indexOf('fetch("https://api.resend.com/emails"'),'membership decisions must persist before email delivery');
+assert.ok(review.includes('email_sent: !emailError'),'approval response must report notification delivery accurately');
 assert.ok(review.includes('retry_notification')&&review.includes('member_application_email_delivery'),'membership notification failures must be retryable and recorded');
 assert.ok(emailDelivery.includes('enable row level security')&&emailDelivery.includes('Moderators view membership email delivery'),'email delivery metadata must remain private to moderators');
 assert.ok(js.includes('emailWarning'),'main moderator UI must report email failure after refreshing the queue');
