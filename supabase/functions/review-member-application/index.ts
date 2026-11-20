@@ -118,12 +118,12 @@ Deno.serve(async (req) => {
   }
 
   if (decision === "approved" && memberId) {
-    const { error: memberError } = await admin.from("profiles").update({
+    const { data: memberProfile, error: memberError } = await admin.from("profiles").update({
       membership_status: "approved",
       display_name: app.applicant_name
-    }).eq("id", memberId);
-    if (memberError) {
-      const message = "Membership was approved, but the member profile could not be synchronized: " + memberError.message;
+    }).eq("id", memberId).select("id").maybeSingle();
+    if (memberError || !memberProfile) {
+      const message = "Membership was approved, but the member profile could not be synchronized: " + (memberError?.message || "profile record not found");
       await admin.from("member_application_email_delivery").upsert({
         application_id: id, decision, status: "failed",
         attempt_count: (previousDelivery?.attempt_count || 0) + 1,
