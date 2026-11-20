@@ -16,7 +16,7 @@ assert.ok(js.includes('emailWarning'),'main moderator UI must report email failu
 assert.ok(!js.includes('the application remains pending'),'main moderator UI must not claim a saved decision is still pending');
 assert.ok(admin.includes('await loadConsole()'),'private admin UI must refresh after a membership decision');
 assert.ok(admin.includes('loadActivity()')&&admin.includes('postgres_changes'),'admin must expose a live member activity feed');
-assert.ok(admin.includes("payload.new.target_type==='member_applications'")&&admin.includes('loadApplications();'),'new membership application activity must refresh the admin review queue');
+assert.ok(admin.includes("payload?.new?.target_type==='member_applications'")&&admin.includes('loadApplications();'),'new membership application activity must refresh the admin review queue');
 assert.ok(admin.includes('applicationPendingCount'),'admin membership queue must expose its pending review count');
 assert.ok(html.includes('id="community-admin"')&&html.includes('Jark Pruden')&&html.includes('COMMUNITY ADMINISTRATOR'),'public site must identify its community administrator without exposing private contact details');
 for(const id of ['userStatusFilter','userPager','userModal','queueSummary','growthBars','exportUsers','exportActivity','exportAudit','exportMessages'])assert.ok(adminHtml.includes('id=\"'+id+'\"'),'missing admin control: '+id);
