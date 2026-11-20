@@ -27,7 +27,7 @@ assert.ok(js.includes('emailWarning'),'main moderator UI must report email failu
 assert.ok(!js.includes('the application remains pending'),'main moderator UI must not claim a saved decision is still pending');
 assert.ok(admin.includes('await loadConsole()'),'private admin UI must refresh after a membership decision');
 assert.ok(admin.includes('loadActivity()')&&admin.includes('postgres_changes'),'admin must expose a live member activity feed');
-assert.ok(admin.includes("payload?.new?.target_type==='member_applications'")&&admin.includes('loadApplications();'),'new membership application activity must refresh the admin review queue');
+assert.ok(admin.includes("target=payload?.new?.target_type")&&admin.includes("if(target==='member_applications')")&&admin.includes('loadApplications();'),'new membership application activity must refresh the admin review queue');
 assert.ok(admin.includes("if(target==='projects')")&&admin.includes('loadProjects();')&&admin.includes("if(target==='community_posts')")&&admin.includes('loadCommunity();'),'new project and community submissions must refresh their admin review queues in real time');
 assert.ok(admin.includes('project_milestones')&&admin.includes('project_updates')&&admin.includes('View full project, milestones and updates'),'project moderation must load complete descriptions, milestones and progress updates');
 assert.ok(admin.includes('View complete application')&&admin.includes('Experience and background')&&admin.includes('Technology interests'),'membership moderation must expose the complete application record');
