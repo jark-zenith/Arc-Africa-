@@ -241,7 +241,7 @@ async function loadCommunity() {
 }
 function renderCommunity() {
   const query = ($('#communitySearch')?.value||'').toLowerCase().trim(), filter = $('#communityFilter')?.value||'open';
-  const rows = communityRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.title,item.summary,item.post_type,item.country,item.county,item.venue].join(' ').toLowerCase().includes(query));
+  const rows = communityRows.filter(item => (filter==='all'||(filter==='open'?['pending','changes_requested'].includes(item.status):item.status===filter)) && [item.title,item.summary,item.body,item.post_type,item.category,item.country,item.county,item.venue].join(' ').toLowerCase().includes(query));
   $('#communityRows').innerHTML = rows.map(item => `<div class="row"><div><h3>${esc(item.title)} <span class="status">${esc(item.post_type)}</span> <span class="status">${esc(item.status)}</span></h3><p>${esc(item.country)}${item.county?' · '+esc(item.county):''}${item.venue?' · '+esc(item.venue):''}</p><p>${esc(item.summary)}</p><details class="admin-submission-details"><summary>Read complete submission</summary><div class="detail-grid"><div class="detail-field detail-wide"><strong>Full content</strong><span>${esc(item.body||item.summary||'No content provided')}</span></div><div class="detail-field"><strong>Tags</strong><span>${esc(Array.isArray(item.tags)?item.tags.join(', '):item.tags)}</span></div><div class="detail-field"><strong>Category</strong><span>${esc(item.category||'general')}</span></div><div class="detail-field"><strong>Event dates</strong><span>${esc(fmt(item.starts_at))} · ${esc(fmt(item.ends_at))}</span></div><div class="detail-field"><strong>Deadline</strong><span>${esc(fmt(item.deadline_at))}</span></div><div class="detail-field"><strong>Severity</strong><span>${esc(item.severity||'Not specified')}</span></div></div></details><p>${externalLink(item.external_url,'External link')} ${externalLink(item.registration_url,'Registration')}</p><small class="muted">Submitted ${esc(fmt(item.created_at))} · Author ${esc(profileFor(item.author_id).display_name||'Member')}</small></div><div class="actions">${item.status!=='approved'?`<button data-post="${esc(item.id)}" data-status="approved">Approve</button>`:''}${item.status!=='rejected'?`<button class="reject" data-post="${esc(item.id)}" data-status="rejected">Reject</button>`:''}<button data-post="${esc(item.id)}" data-status="changes_requested">Request changes</button></div></div>`).join('') || '<p class="empty-state">No community submissions match this view.</p>';
 }
 async function reviewPost(id,status) {
@@ -311,11 +311,20 @@ function watchActivity() {
     .on('postgres_changes',{event:'*',schema:'public',table:'admin_audit_events'},payload=>{
       loadActivity();
       loadAudit();
-      if(payload?.new?.target_type==='member_applications') {
+      const target=payload?.new?.target_type, action=payload?.new?.action;
+      if(target==='member_applications') {
         loadApplications();
-        if(payload.new.action==='member_activity:member_applications:insert' && payload.new.actor_id!==currentUser?.id) {
+        if(action==='member_activity:member_applications:insert' && payload.new.actor_id!==currentUser?.id) {
           toast('New membership application received. The review queue has been refreshed.');
         }
+      }
+      if(target==='projects') {
+        loadProjects();
+        if(action==='member_activity:projects:insert' && payload.new.actor_id!==currentUser?.id) toast('A new project has been submitted for review.');
+      }
+      if(target==='community_posts') {
+        loadCommunity();
+        if(action==='member_activity:community_posts:insert' && payload.new.actor_id!==currentUser?.id) toast('A new community post has been submitted for review.');
       }
     })
     .subscribe();
