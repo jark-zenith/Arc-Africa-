@@ -54,18 +54,50 @@ async function loadConsole() {
       db.from('profiles').select('id,display_name,username,avatar_url,bio,location,role,membership_status,created_at')
     ]);
     const {data,error} = consoleResult;
-    if (error || data?.error) { toast(data?.error || error?.message || 'Admin data unavailable'); return; }
-    users = data.users || [];
-    sessions = data.sessions || [];
+    if (error || data?.error) {
+      const reason=data?.error || error?.message || 'Admin data unavailable';
+      $('#stats').innerHTML='<article class="metric-error"><small>Administrator data unavailable</small><strong>—</strong><span class="stat-note">'+esc(reason)+'</span></article>';
+      toast(reason);
+      return;
+    }
+    users = Array.isArray(data.users) ? data.users : [];
+    sessions = Array.isArray(data.sessions) ? data.sessions : [];
     profiles = profileResult.data || [];
     if (profileResult.error) console.warn('Profile directory details unavailable:', profileResult.error.message);
     userPage = 1;
-    await Promise.all([loadApplications(),loadProjects(),loadCommunity(),loadMessages(),loadAudit(),loadActivity(),loadHealth()]);
-    renderUsers();
+
+    // Render core metrics as soon as the privileged summary arrives. A failure in
+    // an unrelated moderation queue must never leave the dashboard showing only labels.
     renderOverview(data.generated_at);
     $('#lastUpdated').textContent = `Updated ${fmt(data.generated_at)}`;
+
+    const sections = [
+      ['Membership applications',loadApplications],
+      ['Project reviews',loadProjects],
+      ['Community moderation',loadCommunity],
+      ['Contact inbox',loadMessages],
+      ['Administrator audit',loadAudit],
+      ['Member activity',loadActivity],
+      ['Platform health',loadHealth]
+    ];
+    const results = await Promise.allSettled(sections.map(([,loader])=>loader()));
+    results.forEach((result,index)=>{
+      if(result.status==='rejected') {
+        console.error(sections[index][0]+' failed to load:',result.reason);
+        const target={0:'#applicationsRows',1:'#projectsRows',2:'#communityRows',3:'#messagesRows',4:'#auditRows',5:'#activityRows',6:'#healthRows'}[index];
+        const node=$(target);
+        if(node) node.innerHTML='<p class="error-text">This section could not be loaded. Use Refresh data to try again.</p>';
+      }
+    });
+    try { renderUsers(); } catch(error) { console.error('Member directory render failed:',error); $('#usersRows').innerHTML='<tr><td colspan="9" class="error-text">Member directory could not be rendered.</td></tr>'; }
+    // Recalculate cards after all available queues have loaded.
+    renderOverview(data.generated_at);
     $('#queueUpdated').textContent = `Snapshot ${fmt(data.generated_at)}`;
-  })().finally(() => { loadingPromise = null; });
+    if(results.some(result=>result.status==='rejected')) toast('Some admin sections could not load. Core metrics are available; see the affected section and retry.');
+  })().catch(error=>{
+    console.error('Admin dashboard initialisation failed:',error);
+    toast('Dashboard loading failed: '+(error?.message||'Unexpected error')+'. Use Refresh data to retry.');
+  }).finally(() => { loadingPromise = null; });
   return loadingPromise;
 }
 
