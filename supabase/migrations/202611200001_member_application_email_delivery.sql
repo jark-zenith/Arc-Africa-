@@ -55,6 +55,7 @@ to anon, authenticated
 with check (
   commitment_accepted = true
   and status = 'pending'
+  and moderator_note is null
   and reviewed_by is null
   and reviewed_at is null
   and (user_id is null or user_id = (select auth.uid()))
