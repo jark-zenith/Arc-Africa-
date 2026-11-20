@@ -6,6 +6,8 @@ const html=read('../index.html'),js=read('../app.js'),css=read('../styles.css'),
 for(const t of ['Arc Africa','authModal','projectModal','detailModal','countryFilter','community','membershipModal','accountModal'])assert.ok(html.includes(t),'missing HTML: '+t);
 for(const t of ['signUp','signInWithPassword','resetPasswordForEmail','member_applications','community_posts','loadModerationQueue','openAdminDashboard','loadModerationQueue();loadCommunityModerationQueue()','loadAdminApplications','loadAdminMembers','filterProjects','getCountryOptions','adminMetrics'])assert.ok(js.includes(t),'missing app capability: '+t);
 assert.ok(js.includes("emailRedirectTo:location.origin+'/?apply=1'")&&js.includes('handleApplicationOnboarding')&&js.includes('prefillMembershipApplication'),'verified signups must be guided into the membership application flow');
+assert.ok(js.includes('editingMembershipApplicationId')&&js.includes('reviewed_by:null,reviewed_at:null')&&js.includes("update({...row,reviewed_by:null,reviewed_at:null})"),'applicants must be able to resubmit returned applications without retaining reviewer metadata');
+assert.ok(html.includes('id="membershipReviewNote"')&&html.includes('id="membershipSubmit"'),'membership form must display moderator feedback and a resubmission action');
 assert.ok(css.includes('@media(max-width:650px)'),'responsive styles missing');assert.ok(css.includes('.admin-dashboard'),'admin dashboard styles missing');
 assert.ok(!/service[_-]?role/i.test(html+js),'service role key must never be shipped to browser');
 assert.equal(safeHttpUrl('https://example.com/path?q=1'),'https://example.com/path?q=1');
@@ -17,6 +19,7 @@ assert.ok(review.includes('retry_notification')&&review.includes('member_applica
 assert.ok(review.includes('type: "magiclink"')&&review.includes('type: "invite"'),'approval must link existing Auth users and invite applicants who do not yet have accounts');
 assert.ok(emailDelivery.includes('enable row level security')&&emailDelivery.includes('Moderators view membership email delivery'),'email delivery metadata must remain private to moderators');
 assert.ok(emailDelivery.includes('user_id = (select auth.uid())')&&emailDelivery.includes('reviewed_by is null')&&emailDelivery.includes('reviewed_at is null'),'public applications must not spoof applicant identity or moderation metadata');
+assert.ok(emailDelivery.includes('reviewed_by,\n  reviewed_at\n) on public.member_applications to authenticated'),'returned applications must only clear reviewer metadata when resubmitting');
 assert.ok(emailDelivery.includes('revoke all on table public.member_applications from anon, authenticated')&&emailDelivery.includes('grant insert ('),'membership submission must use restricted column-level grants');
 assert.ok(js.includes('emailWarning'),'main moderator UI must report email failure after refreshing the queue');
 assert.ok(!js.includes('the application remains pending'),'main moderator UI must not claim a saved decision is still pending');
