@@ -42,7 +42,9 @@ grant update (
   experience,
   motivation,
   commitment_accepted,
-  status
+  status,
+  reviewed_by,
+  reviewed_at
 ) on public.member_applications to authenticated;
 
 create policy "Public submits membership applications"
