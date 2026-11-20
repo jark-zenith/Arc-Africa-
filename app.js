@@ -35,6 +35,7 @@ async function openMembershipApplication(){
   $('#membershipReviewNote').classList.add('hidden');
   prefillMembershipApplication();
   if(currentUser){
+    await claimAnonymousMembershipApplication();
     const {data,error}=await supabase.from('member_applications')
       .select('id,status,applicant_name,email,github_username,linkedin_url,portfolio_url,county,interests,experience,motivation,commitment_accepted,moderator_note')
       .eq('user_id',currentUser.id).maybeSingle();
@@ -69,6 +70,12 @@ async function openMembershipApplication(){
   }
   showModal('membershipModal');
 }
+async function claimAnonymousMembershipApplication(){
+  if(!currentUser?.email||!currentUser.email_confirmed_at)return null;
+  const {data,error}=await supabase.functions.invoke('claim-member-application',{body:{}});
+  if(error){console.warn('Could not link an earlier anonymous application:',error.message);return null;}
+  return data?.application||null;
+}
 function prefillMembershipApplication(){
   if(!currentUser)return;
   const nameField=$('#membershipForm [name=applicant_name]');
@@ -80,6 +87,7 @@ async function handleApplicationOnboarding(){
   if((!applicationOnboardingPending&&!membershipWelcomePending)||!currentUser||applicationOnboardingBusy)return;
   applicationOnboardingBusy=true;
   try{
+    await claimAnonymousMembershipApplication();
     await loadProfile();
     if(membershipWelcomePending){
       toast(profile?.membership_status==='approved'||['moderator','admin'].includes(profile?.role)?'Your Arc Africa membership is active. Welcome to the community.':'Welcome to Arc Africa. Your account is ready.');
