@@ -1,6 +1,93 @@
 -- Track membership decision email delivery independently from moderation decisions.
 -- This is an additive, private outbox: applicants cannot read or modify delivery metadata.
 
+-- Harden the live membership application surface.
+-- Existing production grants allowed anon/authenticated to address moderator metadata
+-- columns, and the deployed INSERT policy did not bind user_id to auth.uid().
+-- Only the Edge Function's service-role client may write review metadata.
+
+drop policy if exists "Anyone can submit membership application" on public.member_applications;
+drop policy if exists "Moderators manage member applications" on public.member_applications;
+drop policy if exists "Public submits membership applications" on public.member_applications;
+drop policy if exists "Applicants read own applications" on public.member_applications;
+drop policy if exists "Applicants view own application or moderators view all" on public.member_applications;
+drop policy if exists "Moderators read all member applications" on public.member_applications;
+drop policy if exists "Applicants resubmit returned applications" on public.member_applications;
+
+revoke all on table public.member_applications from anon, authenticated;
+grant insert (
+  user_id,
+  applicant_name,
+  email,
+  github_username,
+  linkedin_url,
+  portfolio_url,
+  county,
+  interests,
+  experience,
+  motivation,
+  commitment_accepted,
+  status
+) on public.member_applications to anon, authenticated;
+grant select on table public.member_applications to authenticated;
+grant update (
+  applicant_name,
+  email,
+  github_username,
+  linkedin_url,
+  portfolio_url,
+  county,
+  interests,
+  experience,
+  motivation,
+  commitment_accepted,
+  status
+) on public.member_applications to authenticated;
+
+create policy "Public submits membership applications"
+on public.member_applications
+for insert
+to anon, authenticated
+with check (
+  commitment_accepted = true
+  and status = 'pending'
+  and reviewed_by is null
+  and reviewed_at is null
+  and (user_id is null or user_id = (select auth.uid()))
+);
+
+create policy "Applicants read own applications"
+on public.member_applications
+for select
+to authenticated
+using (user_id = (select auth.uid()));
+
+create policy "Moderators read all member applications"
+on public.member_applications
+for select
+to authenticated
+using (is_arc_moderator());
+
+create policy "Applicants resubmit returned applications"
+on public.member_applications
+for update
+to authenticated
+using (
+  user_id = (select auth.uid())
+  and status in ('rejected','changes_requested')
+)
+with check (
+  user_id = (select auth.uid())
+  and status = 'pending'
+  and reviewed_by is null
+  and reviewed_at is null
+);
+
+create index if not exists member_applications_user_id_fk_idx
+  on public.member_applications(user_id);
+create index if not exists member_applications_reviewed_by_fk_idx
+  on public.member_applications(reviewed_by);
+
 create table if not exists public.member_application_email_delivery (
   application_id uuid not null references public.member_applications(id) on delete cascade,
   decision text not null check (decision in ('approved','rejected','changes_requested')),
