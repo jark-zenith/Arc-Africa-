@@ -136,7 +136,7 @@ PR #16 adds a migration that:
 
 ### Email delivery and approval flow
 
-The deployed version 2 review function has two important failure modes:
+The deployed version 2 review function has two important failure modes. The current application-submission flow also only displays a browser confirmation; it does not send a separate application-received email to the applicant.
 
 1. If Resend is not configured, an anonymous application can be marked approved without creating/linking an Auth user.
 2. Once a decision is final, a failed notification cannot be retried through the current function because it only accepts pending/changes-requested applications.
@@ -221,6 +221,7 @@ These ledger identifiers do not map one-to-one to the repository migration filen
 
 - Enable leaked-password protection after reviewing the Auth setting.
 - Verify custom SMTP and Resend delivery, bounce handling and sender reputation.
+- Add a separate application-received acknowledgement email with delivery tracking; keep it distinct from the later moderation decision email.
 - Add privacy-preserving rate limiting and bot protection to public signup/application forms.
 - Add browser-level E2E tests and failure-path monitoring.
 - Review RLS policy overlap and foreign-key indexes based on actual query plans.
