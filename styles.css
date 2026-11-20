@@ -180,3 +180,5 @@ html,body{width:100%;overflow-x:hidden}
 @media(max-width:650px){.community-admin-section{padding:62px 6vw}.community-admin-card{grid-template-columns:1fr;gap:18px;padding:22px}.community-admin-avatar{width:72px;height:72px;font-size:23px}.community-admin-inner>h2{letter-spacing:-.8px}}
 
 .email-delivery-status{display:block;margin-top:6px;color:#718194;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+
+.membership-review-note{margin:0 0 18px;padding:14px 16px;border-left:3px solid #e6a23c;border-radius:8px;background:#fff7e8;color:#684b1e;font-size:13px;line-height:1.7;white-space:pre-wrap}
